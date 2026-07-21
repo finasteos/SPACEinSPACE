@@ -25,8 +25,10 @@ CREATE TABLE IF NOT EXISTS agent_memories (
     expires_at TIMESTAMPTZ   -- NULL = permanent; non-null = TTL
 );
 
-CREATE INDEX IF NOT EXISTS idx_memories_embedding
-    ON agent_memories USING ivfflat (embedding vector_cosine_ops) WITH (lists = 100);
+-- Note: ivfflat indexes support up to 2000 dimensions in pgvector.
+-- For VECTOR(4096), exact distance queries (<=>) in match_memories work without ivfflat index.
+-- CREATE INDEX IF NOT EXISTS idx_memories_embedding
+--     ON agent_memories USING ivfflat (embedding vector_cosine_ops) WITH (lists = 100);
 CREATE INDEX IF NOT EXISTS idx_memories_agent ON agent_memories (agent_id, memory_type);
 CREATE INDEX IF NOT EXISTS idx_memories_content_trgm
     ON agent_memories USING gin (content gin_trgm_ops);
@@ -51,8 +53,8 @@ CREATE TABLE IF NOT EXISTS agent_conversations (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE INDEX IF NOT EXISTS idx_conversations_embedding
-    ON agent_conversations USING ivfflat (embedding vector_cosine_ops) WITH (lists = 100);
+-- CREATE INDEX IF NOT EXISTS idx_conversations_embedding
+--     ON agent_conversations USING ivfflat (embedding vector_cosine_ops) WITH (lists = 100);
 CREATE INDEX IF NOT EXISTS idx_conversations_thread
     ON agent_conversations (thread_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_conversations_content_trgm

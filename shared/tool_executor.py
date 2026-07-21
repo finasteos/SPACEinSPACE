@@ -25,7 +25,7 @@ import os
 import re
 from datetime import datetime
 from pathlib import Path
-from typing import Callable, Awaitable, Dict, List, Optional, Any
+from typing import Callable, Awaitable, Dict, List, Optional, Any, Tuple
 
 import httpx
 
@@ -44,9 +44,16 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 class ToolExecutor:
     """Dispatch ```tool``` blocks from LLM output to async handlers."""
 
-    def __init__(self, db=None, bus: Optional[A2ABus] = None) -> None:
+    def __init__(self, db=None, bus: Optional[A2ABus] = None,
+                 agent_capabilities: Optional[Callable[[str], Tuple[str, ...]]] = None) -> None:
         self.db = db
         self.bus = bus
+        # Charter Article 4 enforcement: callable wired by the
+        # conductor that maps agent_id → declared capability tuple.
+        # ToolExecutor uses it to gate every tool call whose ToolDef
+        # declares `requires_capability`. If None, capability-gated
+        # tools are rejected fail-closed at execution time.
+        self._agent_capabilities = agent_capabilities
         self._handlers: Dict[str, ToolHandler] = {}
         self._tool_defs: Dict[str, Any] = {}
         self._register_builtins()
@@ -112,7 +119,144 @@ class ToolExecutor:
                 raise ValueError(f"Unsafe expression: {expression!r}")
             return {"expression": expression, "result": eval(expression, {"__builtins__": {}}, {})}
 
+    # ─── Capability Gate (Charter Article 4) ────────────────
+    async def _check_capability_gate(
+        self,
+        name: str,
+        agent_id: str,
+        args: Dict[str, Any],
+        thread_id: str,
+        span: AgentSpan,
+        tool_id: str,
+    ) -> Optional[Dict[str, Any]]:
+        tool_def = self._tool_defs.get(name)
+        if not tool_def:
+            return None
+        required = getattr(tool_def, "requires_capability", [])
+        if not required:
+            return None
+
+        if self._agent_capabilities is None:
+            err = (
+                f"Charter Article 4 capability rejection: no agent_capabilities "
+                f"resolver wired to verify capabilities for agent '{agent_id}' requiring {required}"
+            )
+        else:
+            try:
+                declared = set(self._agent_capabilities(agent_id))
+                missing = set(required) - declared
+                if missing:
+                    err = (
+                        f"Charter Article 4 capability rejection: agent '{agent_id}' "
+                        f"missing required capability(ies): {', '.join(sorted(missing))}"
+                    )
+                else:
+                    return None
+            except Exception as e:
+                err = (
+                    f"Charter Article 4 capability rejection: resolver raised "
+                    f"{type(e).__name__}: {e}"
+                )
+
+        span.finish(success=False, error=err)
+        telemetry.record_span(span)
+        if self.db is not None:
+            try:
+                await self.db.log_tool_call(
+                    thread_id=thread_id,
+                    agent_id=agent_id,
+                    tool_name=name,
+                    input_params=args,
+                    success=False,
+                    error_message=err,
+                )
+            except Exception:
+                pass
+        return {"id": tool_id, "name": name, "success": False, "error": err}
+
     # ─── Validation ─────────────────────────────────────────
+    # ─── Capability gate (Charter Article 4) ──────────────────────────────────
+    async def _check_capability_gate(
+        self,
+        *,
+        name: str,
+        agent_id: str,
+        args: Dict[str, Any],
+        thread_id: str,
+        span,
+        tool_id: str,
+    ) -> Optional[Dict[str, Any]]:
+        """Enforce Charter Article 4 before schema dispatch.
+
+        Returns a result dict (already span-finished and witness-logged)
+        if the call should be rejected; returns None if the gate passes.
+        Backwards-compatible: tools without a ToolDef, or with empty
+        `requires_capability`, are not gated here. Membership is exact
+        set-semantics — a resolver returning anything other than a tuple
+        of strings is UB by the type annotation.
+        """
+        tool_def = self._tool_defs.get(name)
+        if tool_def is None:
+            return None
+        required = list(getattr(tool_def, "requires_capability", []) or [])
+        if not required:
+            return None
+
+        if self._agent_capabilities is None:
+            err = (
+                f"Charter Article 4 Violation: tool '{name}' requires "
+                f"capabilities {required!r} but ToolExecutor has no "
+                f"agent_capabilities resolver wired."
+            )
+            span.finish(success=False, error=err)
+            telemetry.record_span(span)
+            if self.db is not None:
+                try:
+                    await self.db.log_tool_call(
+                        thread_id=thread_id, agent_id=agent_id,
+                        tool_name=name, input_params=args,
+                        success=False, error_message=err, latency_ms=0,
+                    )
+                except Exception:
+                    pass
+            return {"id": tool_id, "name": name, "success": False,
+                    "error": err, "latency_ms": 0}
+
+        try:
+            declared = set(self._agent_capabilities(agent_id) or ())
+        except Exception as e:
+            err = (
+                f"Charter Article 4 Violation: agent_capabilities resolver "
+                f"raised: {type(e).__name__}: {e}"
+            )
+            span.finish(success=False, error=err)
+            telemetry.record_span(span)
+            return {"id": tool_id, "name": name, "success": False,
+                    "error": err}
+
+        missing = [c for c in required if c not in declared]
+        if missing:
+            err = (
+                f"Charter Article 4 Violation: agent '{agent_id}' lacks "
+                f"required capability {missing!r} for tool '{name}' "
+                f"(requires: {required!r}, declared: {sorted(declared)!r})."
+            )
+            span.finish(success=False, error=err)
+            telemetry.record_span(span)
+            if self.db is not None:
+                try:
+                    await self.db.log_tool_call(
+                        thread_id=thread_id, agent_id=agent_id,
+                        tool_name=name, input_params=args,
+                        success=False, error_message=err, latency_ms=0,
+                    )
+                except Exception:
+                    pass
+            return {"id": tool_id, "name": name, "success": False,
+                    "error": err, "latency_ms": 0}
+
+        return None
+
     def validate_arguments(self, name: str, arguments: Dict[str, Any]) -> List[str]:
         """Return list of validation errors (empty list = OK)."""
         tool_def = self._tool_defs.get(name)
@@ -178,6 +322,17 @@ class ToolExecutor:
         tool_id = str(tool_call.get("id", ""))
 
         span: AgentSpan = telemetry.start_span(agent_id, f"tool:{name}")
+
+        # Charter Article 4 — capability gate (empirically enforced).
+        # Fail closed: if the tool declares required capabilities and
+        # either no resolver is wired or the caller lacks them, we
+        # refuse the call and log a witness entry before returning.
+        capability_error = await self._check_capability_gate(
+            name=name, agent_id=agent_id, args=args,
+            thread_id=thread_id, span=span, tool_id=tool_id,
+        )
+        if capability_error is not None:
+            return capability_error
 
         handler = self._handlers.get(name)
         if handler is None:

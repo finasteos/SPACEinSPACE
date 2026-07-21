@@ -148,17 +148,25 @@ Capabilities are declared by an agent in its constructor and shall not
 be expanded at runtime by the conductor. Tool calls outside the
 declared capability set shall be rejected by `ToolExecutor`.
 
+> *Status (empirical):* the executional gate is **enforced** via
+> `shared/tool_executor.py::ToolExecutor._check_capability_gate` and
+> the new `ToolDef.requires_capability: list[str]` field. The
+> conductor wires an `agent_capabilities: Callable[[agent_id],
+> Tuple[str, ...]]` at startup; the gate uses set-membership (exact
+> string matching) and refuses any tool call whose required set is
+> not declared by the calling agent. Audit tests in
+> `tests/test_charter_40_capability_gate.py`.
+
 **4.1 — Capability declaration is mandatory.**
 Every `BaseAgent` subclass shall declare a non-empty `capabilities`
 list. A `capabilities=[]` agent is a ghost and shall not be allowed to
 run.
 
-> *Status (aspirational):* the guard is **not yet** enforced. Today,
-> `BaseAgent.__init__(capabilities: List[str], ...)` accepts an empty
-> or omitted list without raising. Article 4.1 declares the rule; a
-> follow-up audit test is required before this Charter Article is
-> considered satisfied. Until then, contributors shall be honest about
-> the gap: a `capabilities=[]` agent currently runs.
+> *Status (empirical):* the guard is **enforced**. `BaseAgent.__init__`
+> now raises `CharterViolationError` when `capabilities` is `[]` or
+> `None`, and `capabilities` is coerced to a tuple so a subclass
+> cannot structurally clear it post-construction. Audit test in
+> `tests/test_charter_41_guard.py`.
 
 **4.2 — Embassy isolation.**
 External capabilities (Blender, future ambassadors) execute in their

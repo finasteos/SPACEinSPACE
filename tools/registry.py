@@ -11,6 +11,12 @@ class ToolDef(BaseModel):
     failure_patterns: dict[str, str] = Field(default_factory=dict)
     timeout_ms: int = 10000
     retry_policy: dict = Field(default_factory=lambda: {"max_retries": 2, "backoff": "exponential"})
+    # Charter Article 4 — executional capability gate. Non-empty list
+    # means "the calling agent MUST declare each of these strings in
+    # its capability tuple, else ToolExecutor rejects the call".
+    # Membership is exact (set semantics). Empty list = universal,
+    # backwards-compatible with substrate primitives like file.read.
+    requires_capability: list[str] = Field(default_factory=list)
 
 
 TOOL_DEFINITIONS: dict[str, ToolDef] = {
@@ -197,6 +203,107 @@ TOOL_DEFINITIONS: dict[str, ToolDef] = {
                 "memory_type": {"type": "string", "enum": ["episodic", "semantic", "procedural"]},
             },
             "required": ["query"],
+        },
+    ),
+
+    # ── Plugin tools (from Sverchok, Mesh Machine, etc.) ─────
+    "blender.sverchok.generate": ToolDef(
+        name="blender.sverchok.generate",
+        version="1.0.0",
+        description="Generera parametrisk mesh via Sverchok nod-träd",
+        parameters_schema={
+            "type": "object",
+            "properties": {
+                "tree_name": {"type": "string", "description": "Name of Sverchok node tree"},
+                "inputs": {"type": "object", "description": "Input values for tree nodes"},
+            },
+            "required": ["tree_name"],
+        },
+        failure_patterns={
+            "not_found": "Sverchok tree not found — install Sverchok plugin",
+            "import_error": "Sverchok not installed — pip install sverchok or add from preferences",
+        },
+    ),
+    "blender.animation_nodes.run": ToolDef(
+        name="blender.animation_nodes.run",
+        version="1.0.0",
+        description="Kör ett Animation Nodes träd",
+        parameters_schema={
+            "type": "object",
+            "properties": {
+                "tree_name": {"type": "string"},
+            },
+            "required": ["tree_name"],
+        },
+    ),
+    "blender.mesh_machine.chamfer": ToolDef(
+        name="blender.mesh_machine.chamfer",
+        version="1.0.0",
+        description="Chamfer-kanter med Mesh Machine",
+        parameters_schema={
+            "type": "object",
+            "properties": {
+                "object": {"type": "string"},
+                "distance": {"type": "number", "description": "Chamfer distance"},
+                "segments": {"type": "integer", "description": "Number of segments"},
+            },
+            "required": ["object"],
+        },
+        failure_patterns={
+            "import_error": "Mesh Machine not installed: enable mesh_machine addon",
+        },
+    ),
+    "blender.mesh_machine.bevel": ToolDef(
+        name="blender.mesh_machine.bevel",
+        version="1.0.0",
+        description="Bevel-kanter med Mesh Machine",
+        parameters_schema={
+            "type": "object",
+            "properties": {
+                "object": {"type": "string"},
+                "width": {"type": "number"},
+                "segments": {"type": "integer"},
+            },
+            "required": ["object"],
+        },
+    ),
+    "blender.booleans.cut": ToolDef(
+        name="blender.booleans.cut",
+        version="1.0.0",
+        description="Boolean cut med valfritt verktyg (cube, sphere, etc.)",
+        parameters_schema={
+            "type": "object",
+            "properties": {
+                "object": {"type": "string"},
+                "tool": {"type": "string", "enum": ["cube", "sphere", "cylinder", "plane"]},
+                "operation": {"type": "string", "enum": ["DIFFERENCE", "UNION", "INTERSECT"]},
+            },
+            "required": ["object"],
+        },
+    ),
+    "blender.uv.pack": ToolDef(
+        name="blender.uv.pack",
+        version="1.0.0",
+        description="Packa UV-islands för ett objekt",
+        parameters_schema={
+            "type": "object",
+            "properties": {
+                "object": {"type": "string"},
+            },
+            "required": ["object"],
+        },
+    ),
+    "blender.geometry_nodes.apply": ToolDef(
+        name="blender.geometry_nodes.apply",
+        version="1.0.0",
+        description="Applicera en Geometry Nodes modifier",
+        parameters_schema={
+            "type": "object",
+            "properties": {
+                "object": {"type": "string"},
+                "modifier_name": {"type": "string"},
+            },
+            "required": ["object"],
         },
     ),
 }

@@ -1,5 +1,5 @@
 from abc import ABC
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Tuple
 import asyncio
 from datetime import datetime
 
@@ -8,16 +8,36 @@ from shared.supabase_client import AgentDatabase
 from shared.agent_timeline import Tickable, AgentTimeline, TimelineEvent, HumanInputPolicy
 
 
+class CharterViolationError(ValueError):
+    """Raised when a system operation violates the project Charter.
+
+    Charter Article 4.1 is the most common cause: an agent declared
+    without capabilities is a ghost who must not be allowed to run.
+    Future Charter articles may introduce their own subclasses or
+    more specific messages.
+    """
+
+
 class BaseAgent(ABC, Tickable):
     tick_interval: int = 1
 
     def __init__(self, agent_id: str, name: str, role: str,
                  capabilities: List[str], db: AgentDatabase,
                  bus: A2ABus, llm_client, subscribe: bool = False):
+        # Charter Article 4.1: a capabilities=[] agent is a ghost and
+        # shall not be allowed to run. We coerce the list to a tuple so
+        # subclasses cannot structurally clear capabilities after
+        # super().__init__ returns.
+        if not capabilities:
+            raise CharterViolationError(
+                f"Charter Article 4.1 Violation: Agent '{agent_id}' "
+                "declared empty capabilities. A ghost shall not be "
+                "allowed to run."
+            )
         self.agent_id = agent_id
         self.name = name
         self.role = role
-        self.capabilities = capabilities
+        self.capabilities: Tuple[str, ...] = tuple(capabilities)
         self.db = db
         self.bus = bus
         self.llm = llm_client
@@ -29,7 +49,10 @@ class BaseAgent(ABC, Tickable):
             self.bus.subscribe(agent_id, self._on_bus_message)
 
     async def initialize(self):
-        await self.db.register_agent(self.agent_id, self.name, self.role, self.capabilities)
+        # capabilities stored internally as tuple; pass as list to DB.
+        await self.db.register_agent(
+            self.agent_id, self.name, self.role, list(self.capabilities)
+        )
 
     async def think(self, message: A2AMessage, scratchpad: str) -> str:
         context = (

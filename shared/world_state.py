@@ -248,6 +248,11 @@ class AgentWorld:
         self.goals = GoalQueue()
         self.blender_state = BlenderStateMirror()
         self.memory = AgentMemory()
+        # Charter Article 5.4 — the human role is a peer, not a
+        # controller, and not a default character. Substrate is
+        # avatar-agnostic: set human_avatar from conductor config or
+        # leave None. No shipped default that names anyone.
+        self.human_avatar: Optional[Dict[str, Any]] = None
         self._tasks: Set[asyncio.Task] = set()
 
     # ─── Goal management ─────────────────────────────────────
@@ -307,7 +312,21 @@ class AgentWorld:
             if current_goal else ""
         )
 
+        # Substrate is avatar-agnostic. If the operator has set a
+        # named guest avatar (via HumanGuestAgent instantiation or
+        # conductor config), surface it; otherwise leave the slot quiet
+        # so the project does not ship a default that names anyone.
+        avatar_section = ""
+        if self.human_avatar is not None:
+            avatar_section = (
+                f"\n\n### 🥊 Guest Avatar\n"
+                f"  Namn: {self.human_avatar.get('name', 'unknown')} "
+                f"({self.human_avatar.get('role', 'guest')})\n"
+                f"  Beskrivning: {self.human_avatar.get('description', '').strip() or '—'}\n"
+            )
+
         return (
+            f"{avatar_section}"
             f"{timeline_view}"
             f"{goal_line}"
             f"\n\n### 🌍 Världen\n"
