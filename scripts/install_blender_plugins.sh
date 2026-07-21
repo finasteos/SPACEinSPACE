@@ -187,6 +187,21 @@ install_all() {
     # AI / procedural
     install_extension "dream_textures" || install_github_release "carson-katri/dream-textures" "dream_textures"
 
+    # ── Workflow / quality-of-life ─────────────────────────────
+    # Workflow add-ons that complement the procedural / geometry
+    # stack above. Picked to round out what an agent-led Blender
+    # team needs for production-quality output:
+    #   - MACHIN3Tools — clean hard-surface workflow + mirrors +
+    #     symmetry, complements HardOps/BoxCutter.
+    #   - Fluent (Blender 4.0+) — drag-and-drop placement +
+    #     wire-up assistant that speeds up scene assembly.
+    #   - ModifierList — modifier-stack pickr keypad, essential
+    #     for procedural-modelling pipelines when an agent has
+    #     to inspect a chain rather than individual nodes.
+    install_extension "machin3tools" || install_github_release "MACHIN3Tools/MACHIN3Tools" "MACHIN3Tools"
+    install_extension "fluent" || install_github_release "anderth/Fluent" "fluent"
+    install_extension "modifier_list" || install_github_release "mrachinskiy/ModifierList" "modifier_list"
+
     # ── pip for AI plugins ──────────────────────────────────────
     echo ""
     echo "━━━ Python dependencies (pip) ─────────────────────────────"
@@ -213,6 +228,7 @@ install_all() {
     echo "   • Mesh Machine   • BoxCutter   • HardOps"
     echo "   • Node Preview   • Principled Baker   • NodeKit"
     echo "   • Instant Meshes • Better FBX"
+    echo "   • MACHIN3Tools   • Fluent   • ModifierList"
     echo "   • F2, Loop Tools, Extra Objects, FBX (bundled in older Blender)"
 }
 
