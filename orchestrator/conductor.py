@@ -14,7 +14,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
-from typing import Dict, Optional
+from typing import Dict, Optional, Tuple
 
 from dotenv import load_dotenv
 
@@ -48,7 +48,16 @@ class Conductor:
         self.world = AgentWorld(tick_interval_ms=tick_interval_ms)
 
         # ─── Tool executor ────────────────────────────────
-        self.tool_executor = ToolExecutor(db=self.db)
+        # Charter Article 4 (empirical at production runtime): the
+        # executor's capability gate must be wired with a callable that
+        # resolves `agent_id → declared capabilities`. We use a late-
+        # bound lambda so we can populate `_agents_by_id` in
+        # _setup_agents() before the callable is actually called.
+        self._agents_by_id: Dict[str, BaseAgent] = {}
+        self.tool_executor = ToolExecutor(
+            db=self.db,
+            agent_capabilities=lambda aid: self._resolve_capabilities(aid),
+        )
         try:
             from mcp_servers.blender_mcp_server import BlenderMCPServer
             bm = BlenderMCPServer()
@@ -85,6 +94,88 @@ class Conductor:
             instance.connect_world(self.world)
             self.world.timeline.register_agent(instance)
             self.agents[name] = instance
+            # Charter Article 4: index by `agent_id` so the runtime
+            # gate (`_resolve_capabilities`) resolves caller ids
+            # correctly. Display name and agent_id may differ.
+            self._agents_by_id[instance.agent_id] = instance
+
+    def _resolve_capabilities(self, agent_id: str) -> Tuple[str, ...]:
+        """Charter Article 4: callable wired into ToolExecutor.
+
+        Fail-closed semantics: if `agent_id` is not in the conductor's
+        registry, raise KeyError. The executor's gate translates that
+        into a Charter Article 4 Violation string for the witness log.
+        """
+        agent = self._agents_by_id.get(agent_id)
+        if agent is None:
+            raise KeyError(
+                f"agent_id {agent_id!r} not registered in conductor "
+                f"(known: {sorted(self._agents_by_id.keys())})"
+            )
+        return tuple(agent.capabilities)
+
+    # ─── Charter Article 5.4: human peer seat ────────────────────────
+    def get_or_create_guest(self, handle: str) -> "HumanGuestAgent":
+        """Visitor seat on the A2A bus (Charter Article 5.4).
+
+        Returns an existing HumanGuestAgent if one already exists for
+        this handle, else creates one and registers it.
+        """
+        agent_id = f"guest-{handle}"
+        existing = self._agents_by_id.get(agent_id)
+        if existing is not None:
+            return existing
+        from agents.human_guest_agent import HumanGuestAgent
+        instance = HumanGuestAgent(
+            db=self.db, bus=self.bus, llm_client=self.llm, handle=handle,
+        )
+        instance.connect_world(self.world)
+        self._agents_by_id[agent_id] = instance
+        self.agents[f"guest:{handle}"] = instance
+        # Surface the named guest in the world's observable state so
+        # the operator can see who is currently on the bus.
+        self.world.human_avatar = {
+            "name": f"Guest {handle}",
+            "role": "Guest Human Avatar",
+            "description": f"Visiting human peer (handle={handle})",
+            "profile_doc": "docs/guest-charter.md",
+        }
+        self.world.timeline.log("world", "guest_arrived", {
+            "agent_id": agent_id, "handle": handle,
+        })
+        return instance
+
+    async def publish_as_guest(self, handle: str, text: str) -> int:
+        """Route a human message into the visitor peer seat (Article 5.4).
+
+        Returns the message_id so the front-end can cite it back.
+        """
+        agent = self.get_or_create_guest(handle)
+        await agent.enqueue_human_input(text)
+        # Synthesize an addressed A2AMessage so BaseAgent.handle_message
+        # walks the normal publish-on-bus path. The human's words land
+        # on the witness log; the LLM is bypassed by HumanGuestAgent.think().
+        msg = A2AMessage(
+            thread_id=f"guest-{handle}",
+            from_agent=agent.agent_id,
+            to_agent=None,
+            message_type="observation",
+            content=text,
+        )
+        return await agent.handle_message(msg)
+
+    async def remove_guest(self, handle: str) -> bool:
+        agent_id = f"guest-{handle}"
+        instance = self._agents_by_id.pop(agent_id, None)
+        self.agents.pop(f"guest:{handle}", None)
+        if self.world.human_avatar and self.world.human_avatar.get("name") == f"Guest {handle}":
+            self.world.human_avatar = None
+        if instance is not None:
+            self.world.timeline.log("world", "guest_departed", {
+                "agent_id": agent_id, "handle": handle,
+            })
+            return True
+        return False
 
     async def register_all(self) -> None:
         for agent in self.agents.values():

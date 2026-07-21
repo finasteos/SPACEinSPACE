@@ -191,6 +191,7 @@ async def test_article_4_resolver_exception_is_charter_rejection():
     executor = ToolExecutor(db=None, agent_capabilities=_CapResolver({}))
     _register_restricted(executor, "blender.render", ["blender"])
 
+    # agent_id "ghost" not in resolver mapping → KeyError
     result = await executor.execute(
         {"name": "blender.render", "arguments": {}},
         thread_id="t", agent_id="ghost",
@@ -204,7 +205,80 @@ async def test_article_4_resolver_exception_is_charter_rejection():
     assert "Unknown tool" not in result["error"]
 
 
+# ─── L2 ordering pin ─────────────────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_article_4_handler_missing_with_required_capability_yields_unknown():
+    """L2-ordering pin: handler missing + ToolDef has requirements →
+    'Unknown tool', NOT 'Charter Article 4'. This locks in the
+    sequence so a future refactor cannot silently move the gate above
+    the handler check without breaking this test.
+
+    If a regression ever flips the order, an agent with insufficient
+    capabilities would suddenly see a Charter-error instead of
+    Unknown-tool — that leaks less info about a missing handler but
+    also mis-attributes the failure mode. This test makes the
+    misattribution visible.
+    """
+    executor = ToolExecutor(
+        db=None,
+        agent_capabilities=_CapResolver({"ghost": ["blender"]}),  # has the cap
+    )
+    # Add a ToolDef requiring capabilities; do NOT register a handler.
+    _register_restricted(executor, "blender.nonexistent", ["blender"])
+
+    result = await executor.execute(
+        {"name": "blender.nonexistent", "arguments": {}},
+        thread_id="t", agent_id="ghost",
+    )
+    assert not result["success"]
+    # Handler check must come first; gate must NOT run.
+    assert "Unknown tool" in result["error"]
+    assert "Charter Article 4" not in result["error"]
 
 
+# ─── Plugin-cap migration test ───────────────────────────────────
 
+@pytest.mark.asyncio
+async def test_article_4_plugin_tools_require_their_plugin_capability():
+    """The 7 plugin ToolDefs landed via tools/registry.py must declare
+    the plugin-specific capability. This test reads the live registry
+    directly (no hard-coded list) and asserts the gate rejects each
+    one for an agent that lacks its plugin-specific capability.
+    """
+    from tools.registry import TOOL_DEFINITIONS, ToolDef
 
+    plugin_tools_with_required = {
+        name: defn for name, defn in TOOL_DEFINITIONS.items()
+        if name.startswith("blender.") and defn.requires_capability
+        # Only test tools whose requires_capability is a list with at
+        # least one non-"blender" entry (i.e., a plugin-specific cap).
+        and any(c != "blender" for c in defn.requires_capability)
+    }
+    assert plugin_tools_with_required, (
+        "No plugin tools with a non-blender-specific capability were "
+        "found in TOOL_DEFINITIONS. Migration may have regressed."
+    )
+
+    # An agent that only declares "blender" but not any plugin cap.
+    bare_agent_caps = ("blender",)
+    executor = ToolExecutor(
+        db=None,
+        agent_capabilities=_CapResolver({"bare-agent": bare_agent_caps}),
+    )
+
+    for name, defn in plugin_tools_with_required.items():
+        missing = [c for c in defn.requires_capability if c not in bare_agent_caps]
+        assert missing, f"sanity: {name} should require a cap not in bare-agent"
+        result = await executor.execute(
+            {"name": name, "arguments": {}},
+            thread_id="t", agent_id="bare-agent",
+        )
+        assert not result["success"], f"{name}: expected rejection"
+        assert "Charter Article 4" in result["error"], (
+            f"{name}: expected Charter Article 4 error, got: {result['error']}"
+        )
+        for m in missing:
+            assert m in result["error"], (
+                f"{name}: missing capability {m!r} should appear in error"
+            )

@@ -1,6 +1,13 @@
 #!/usr/bin/env bash
 # Install Blender plugins for the agent ecosystem.
 #
+# WARNING: This script installs Python packages into your user
+# environment (via `pip install --user`) and downloads community
+# Blender plugins from GitHub without checksums. Run only on
+# machines where you trust those sources. The downloads are NOT
+# verified — a hostile plugin author could substitute code. Use
+# at your own risk.
+#
 # Usage:
 #   chmod +x scripts/install_blender_plugins.sh
 #   ./scripts/install_blender_plugins.sh           # auto-detect Blender version
@@ -183,9 +190,9 @@ install_all() {
     # ── pip for AI plugins ──────────────────────────────────────
     echo ""
     echo "━━━ Python dependencies (pip) ─────────────────────────────"
-    pip3 install --quiet torch 2>/dev/null && echo "  ✓ torch" || echo "  ⚠ torch (skip: no GPU or pip issue)"
-    pip3 install --quiet diffusers 2>/dev/null && echo "  ✓ diffusers" || true
-    pip3 install --quiet transformers 2>/dev/null && echo "  ✓ transformers" || true
+    pip3 install --user --quiet torch 2>/dev/null && echo "  ✓ torch (user)" || echo "  ⚠ torch (skip)"
+    pip3 install --user --quiet diffusers 2>/dev/null && echo "  ✓ diffusers (user)" || true
+    pip3 install --user --quiet transformers 2>/dev/null && echo "  ✓ transformers (user)" || true
 
     # ── Verify ──────────────────────────────────────────────────
     echo ""

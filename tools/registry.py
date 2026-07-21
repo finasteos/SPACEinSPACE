@@ -223,6 +223,7 @@ TOOL_DEFINITIONS: dict[str, ToolDef] = {
             "not_found": "Sverchok tree not found — install Sverchok plugin",
             "import_error": "Sverchok not installed — pip install sverchok or add from preferences",
         },
+        requires_capability=["blender", "sverchok"],
     ),
     "blender.animation_nodes.run": ToolDef(
         name="blender.animation_nodes.run",
@@ -235,6 +236,7 @@ TOOL_DEFINITIONS: dict[str, ToolDef] = {
             },
             "required": ["tree_name"],
         },
+        requires_capability=["blender", "animation_nodes"],
     ),
     "blender.mesh_machine.chamfer": ToolDef(
         name="blender.mesh_machine.chamfer",
@@ -252,6 +254,7 @@ TOOL_DEFINITIONS: dict[str, ToolDef] = {
         failure_patterns={
             "import_error": "Mesh Machine not installed: enable mesh_machine addon",
         },
+        requires_capability=["blender", "mesh_machine"],
     ),
     "blender.mesh_machine.bevel": ToolDef(
         name="blender.mesh_machine.bevel",
@@ -266,6 +269,7 @@ TOOL_DEFINITIONS: dict[str, ToolDef] = {
             },
             "required": ["object"],
         },
+        requires_capability=["blender", "mesh_machine"],
     ),
     "blender.booleans.cut": ToolDef(
         name="blender.booleans.cut",
@@ -280,6 +284,7 @@ TOOL_DEFINITIONS: dict[str, ToolDef] = {
             },
             "required": ["object"],
         },
+        requires_capability=["blender", "boxcutter"],
     ),
     "blender.uv.pack": ToolDef(
         name="blender.uv.pack",
@@ -292,6 +297,7 @@ TOOL_DEFINITIONS: dict[str, ToolDef] = {
             },
             "required": ["object"],
         },
+        requires_capability=["blender", "textools"],
     ),
     "blender.geometry_nodes.apply": ToolDef(
         name="blender.geometry_nodes.apply",
@@ -305,5 +311,6 @@ TOOL_DEFINITIONS: dict[str, ToolDef] = {
             },
             "required": ["object"],
         },
+        requires_capability=["blender"],
     ),
 }

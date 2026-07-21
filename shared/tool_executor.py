@@ -54,6 +54,27 @@ class ToolExecutor:
         # declares `requires_capability`. If None, capability-gated
         # tools are rejected fail-closed at execution time.
         self._agent_capabilities = agent_capabilities
+        # Charter Article 4 — fail-loud sentinel. Probe the resolver
+        # once at startup. If it returns a non-tuple-of-strings for
+        # an agent it knows, the conductor is mis-wired and we want
+        # this to surface NOW, not on the first tool call. A known
+        # resolver may raise KeyError for the sentinel — that's
+        # accepted (some resolvers don't accept arbitrary ids).
+        if agent_capabilities is not None:
+            try:
+                _probe = agent_capabilities("__charter_4_sentinel__")
+            except Exception:
+                _probe = None
+            if _probe is not None and (
+                not isinstance(_probe, (tuple, list))
+                or not all(isinstance(c, str) for c in _probe)
+            ):
+                raise ValueError(
+                    f"Charter Article 4 Violation: agent_capabilities "
+                    f"resolver returned a non-tuple-of-strings shape "
+                    f"({type(_probe).__name__}={_probe!r}). "
+                    f"Wire as `lambda aid: tuple_of_strings`."
+                )
         self._handlers: Dict[str, ToolHandler] = {}
         self._tool_defs: Dict[str, Any] = {}
         self._register_builtins()

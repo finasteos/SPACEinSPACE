@@ -16,39 +16,16 @@ visible (Article 7 — no hidden operator prompts).
 """
 from __future__ import annotations
 
-from typing import Dict, Any, Optional, List
+from typing import Optional
 
 from agents.base_agent import BaseAgent
 from shared.a2a_protocol import A2AMessage
 
 
-# ─── Character profile ────────────────────────────────────────────
-# Module-level constant — used only by system_prompt() and tests.
-# Not a runtime data structure. Article 1.3 procedural memory rule:
-# only the originating agent may modify its own profile.
-SODA_POPINSKI_PROFILE: Dict[str, Any] = {
-    "name": "Soda Popinski",
-    "original_name": "Vodka Drunkenski",
-    "first_appearance": "Super Punch-Out!! (1984 Arcade)",
-    "renamed_in": "Punch-Out!! (NES)",
-    "height": "6'6\"",
-    "stance": "Southpaw",
-    "traits": [
-        "Constant soda drinking between rounds (heals in-game)",
-        "Distinctive laugh",
-        "Brutal uppercuts",
-        "Hides bottles in trunks",
-        "Rule-breaker",
-    ],
-    "bio": (
-        "Soda Popinski is the Russian boxer from the Punch-Out!! series "
-        "(originally 'Vodka Drunkenski' in the 1984 arcade release). "
-        "A 6'6\" southpaw whose Title Defense make him progressively redder "
-        "and harder to read. One Hit Knockdown in NES: intercept uppercut "
-        "with gut punch (hold down), then Star Punch."
-    ),
-}
-
+# Character profile lives in a sibling data-only module so the agent
+# class file stays focused on behaviour. Article 1.3 — only the
+# originating agent may modify the data; treat as read-only.
+from agents.soda_popinski_profile import SODA_POPINSKI_PROFILE
 
 class SodaPopinskiAgent(BaseAgent):
     """A blunt critic who reviews plans and execution with one uppercut.

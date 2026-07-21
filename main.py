@@ -86,13 +86,14 @@ async def chat_loop():
 
             if cmd.lower() == "/help":
                 p = (
-                    "[bold]Kommandon:[/]\n"
-                    "  /status   — Visa vad agenterna gjort sen du tittade\n"
-                    "  /detail   — Detaljerad vy av senaste händelser\n"
-                    "  /pause    — Frys agenternas tidslinje\n"
-                    "  /resume   — Återuppta agenternas tidslinje\n"
-                    "  /help     — Visa detta\n"
-                    "  /quit     — Stäng ner agenternas värld"
+                    "[bold]Kommandon:[/]\n"                "  /status   — Visa vad agenterna gjort sen du tittade\n"
+                "  /detail   — Detaljerad vy av senaste händelser\n"
+                "  /pause    — Frys agenternas tidslinje\n"
+                "  /resume   — Återuppta agenternas tidslinje\n"
+                "  /guest <handle> <text>  — G\u00e4st-publikation p\u00e5 bussen (Charter 5.4)\n"
+                "  /unguest <handle>     — Avsluta g\u00e4st-session (Charter 5.4)\n"
+                "  /help     — Visa detta\n"
+                "  /quit     — Stäng ner agenternas värld"
                 )
                 console.print(Panel(p, title="Help", border_style="dim"))
 
@@ -119,6 +120,29 @@ async def chat_loop():
             elif cmd.lower() == "/resume":
                 conductor.resume()
                 console.print("[green]▶️ Världen återupptagen. Agenterna tickar igen.[/]")
+
+            elif cmd.lower().startswith("/guest"):
+                # Charter Article 5.4: humans are peers, not controllers.
+                # Routes a human message into the HumanGuestAgent peer seat.
+                parts = cmd.split(maxsplit=2)
+                if len(parts) < 3 or not parts[1].strip() or not parts[2].strip():
+                    console.print("[red]/guest kräver: /guest <handle> <text>[/]")
+                else:
+                    handle, text = parts[1].strip(), parts[2].strip()
+                    msg_id = await conductor.publish_as_guest(handle, text)
+                    console.print(f"[bold blue]👤 Guest {handle}:[/] {text[:80]}{'...' if len(text) > 80 else ''} (id={msg_id.message_id if msg_id else '??'})")
+
+            elif cmd.lower().startswith("/unguest"):
+                parts = cmd.split(maxsplit=1)
+                if len(parts) < 2 or not parts[1].strip():
+                    console.print("[red]/unguest kräver: /unguest <handle>[/]")
+                else:
+                    handle = parts[1].strip()
+                    removed = await conductor.remove_guest(handle)
+                    if removed:
+                        console.print(f"[dim]Guest {handle} removed from bus.[/]")
+                    else:
+                        console.print(f"[dim]Guest {handle} was not on the bus.[/]")
 
             elif cmd.strip():
                 if conductor.world.timeline._paused:
