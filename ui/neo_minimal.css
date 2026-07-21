@@ -1,0 +1,223 @@
+/* ============================================================================
+   NEO-JAPANESE MINIMALISM ("NEON NOIR") DESIGN SYSTEM
+   Agent Ecosystem Substrate
+   ============================================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Space+Grotesk:wght@300;400;500;600;700&display=swap');
+
+:root {
+  /* High-Contrast Monochrome Base */
+  --bg-obsidian: #050508;
+  --bg-card: #0d0e14;
+  --bg-card-hover: #13151f;
+  --bg-panel: #0a0b10;
+  
+  --border-dim: #181b26;
+  --border-bright: #2d3245;
+  
+  /* Text Hierarchy */
+  --text-pure: #f0f2f8;
+  --text-subtle: #8a91b0;
+  --text-muted: #50566e;
+  
+  /* Neo Accents (High-Impact Color Pops) */
+  --neon-cyan: #00f0ff;
+  --neon-cyan-glow: rgba(0, 240, 255, 0.25);
+  --neon-cyan-subtle: rgba(0, 240, 255, 0.08);
+  
+  --neon-yellow: #ffe600;
+  --neon-yellow-glow: rgba(255, 230, 0, 0.25);
+  --neon-yellow-subtle: rgba(255, 230, 0, 0.08);
+
+  --neon-magenta: #ff0055;
+  --neon-magenta-glow: rgba(255, 0, 85, 0.25);
+  
+  /* Agent Role Colors (Neo Palette) */
+  --agent-planner: #ffe600;
+  --agent-blender: #00f0ff;
+  --agent-memory: #9d4edd;
+  --agent-tool: #00f0ff;
+  --agent-review: #ff0055;
+  --agent-fallback: #8a91b0;
+  --agent-human: #ffe600;
+
+  /* Typography */
+  --font-sans: 'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+}
+
+/* Reset & Global Base */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: var(--bg-obsidian);
+  color: var(--text-pure);
+  height: 100vh;
+  overflow: hidden;
+  letter-spacing: -0.01em;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ─── Typography & Kanji Badges ─── */
+h1, h2, h3, h4 {
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.kanji-badge {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  padding: 0.15rem 0.4rem;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border-dim);
+  color: var(--text-subtle);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.kanji-badge.cyan {
+  border-color: var(--neon-cyan);
+  color: var(--neon-cyan);
+  background: var(--neon-cyan-subtle);
+  box-shadow: 0 0 10px var(--neon-cyan-glow);
+}
+
+.kanji-badge.yellow {
+  border-color: var(--neon-yellow);
+  color: var(--neon-yellow);
+  background: var(--neon-yellow-subtle);
+  box-shadow: 0 0 10px var(--neon-yellow-glow);
+}
+
+/* ─── Layout Grid ─── */
+.app-container {
+  display: grid;
+  grid-template-columns: 260px 1fr 340px;
+  grid-template-rows: 52px 1fr;
+  height: 100vh;
+  background: var(--bg-obsidian);
+}
+
+/* ─── Header ─── */
+.header-bar {
+  grid-column: 1 / -1;
+  background: var(--bg-panel);
+  border-bottom: 1px solid var(--border-dim);
+  padding: 0 1.2rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  z-index: 100;
+}
+
+.header-bar .logo {
+  font-size: 0.95rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.header-bar .logo span {
+  color: var(--neon-cyan);
+  text-shadow: 0 0 8px var(--neon-cyan-glow);
+}
+
+.header-nav {
+  display: flex;
+  gap: 1rem;
+}
+
+.header-nav a {
+  color: var(--text-subtle);
+  text-decoration: none;
+  font-size: 0.8rem;
+  font-family: var(--font-mono);
+  transition: all 0.2s;
+  padding: 0.3rem 0.6rem;
+  border-radius: 4px;
+}
+
+.header-nav a:hover, .header-nav a.active {
+  color: var(--neon-cyan);
+  background: var(--neon-cyan-subtle);
+  border: 1px solid var(--neon-cyan);
+}
+
+/* ─── Cards & Panels ─── */
+.neo-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-dim);
+  border-radius: 4px;
+  padding: 1rem;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.neo-card:hover {
+  border-color: var(--border-bright);
+}
+
+.neo-card.active-cyan {
+  border-color: var(--neon-cyan);
+  box-shadow: 0 0 15px var(--neon-cyan-glow);
+}
+
+.neo-card.active-yellow {
+  border-color: var(--neon-yellow);
+  box-shadow: 0 0 15px var(--neon-yellow-glow);
+}
+
+/* ─── Status Micro-Glow Indicators ─── */
+.status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--text-muted);
+  display: inline-block;
+}
+
+.status-dot.active {
+  background: var(--neon-cyan);
+  box-shadow: 0 0 8px var(--neon-cyan);
+}
+
+.status-dot.thinking {
+  background: var(--neon-yellow);
+  box-shadow: 0 0 8px var(--neon-yellow);
+  animation: pulse-yellow 1.5s infinite;
+}
+
+.status-dot.error {
+  background: var(--neon-magenta);
+  box-shadow: 0 0 8px var(--neon-magenta);
+}
+
+@keyframes pulse-yellow {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(1.2); }
+}
+
+/* ─── Scrollbars ─── */
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg-obsidian);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border-bright);
+  border-radius: 2px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--neon-cyan);
+}

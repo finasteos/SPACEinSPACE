@@ -91,6 +91,17 @@ class DashboardHandler(http.server.SimpleHTTPRequestHandler):
         elif path == "/tools":
             self._send_html(self._inject_config(os.path.join(os.path.dirname(__file__), "tools.html")))
 
+        elif path == "/neo_minimal.css":
+            css_path = os.path.join(os.path.dirname(__file__), "neo_minimal.css")
+            if os.path.exists(css_path):
+                with open(css_path, "rb") as f:
+                    body = f.read()
+                self.send_response(200)
+                self.send_header("Content-Type", "text/css; charset=utf-8")
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+
         elif path == "/api/toolstats":
             self._handle_tool_stats_api()
 

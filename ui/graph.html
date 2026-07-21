@@ -4,45 +4,46 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Agent Graph — Realtime</title>
+<link rel="stylesheet" href="/neo_minimal.css">
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body {
-  background: #0d1117; color: #e6edf3;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: #050508; color: #f0f2f8;
+  font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
   overflow: hidden; height: 100vh;
 }
 canvas { display: block; width: 100vw; height: 100vh; }
 
 .legend {
   position: fixed; top: 1rem; left: 1rem;
-  background: rgba(22,27,34,0.9); border: 1px solid #30363d;
-  border-radius: 8px; padding: 0.8rem; font-size: 0.75rem;
-  backdrop-filter: blur(8px);
+  background: rgba(13,14,20,0.9); border: 1px solid #181b26;
+  border-radius: 4px; padding: 0.8rem 1rem; font-size: 0.75rem;
+  backdrop-filter: blur(12px); box-shadow: 0 0 15px rgba(0,240,255,0.1);
 }
-.legend h3 { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 1px; color: #8b949e; margin-bottom: 0.4rem; }
-.legend-item { display: flex; align-items: center; gap: 0.4rem; padding: 0.15rem 0; }
+.legend h3 { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 1.5px; color: #00f0ff; margin-bottom: 0.5rem; font-family: 'JetBrains Mono', monospace; }
+.legend-item { display: flex; align-items: center; gap: 0.5rem; padding: 0.2rem 0; font-family: 'Space Grotesk', sans-serif; }
 .legend-dot { width: 8px; height: 8px; border-radius: 50%; }
 
 .stats {
   position: fixed; bottom: 1rem; right: 1rem;
-  background: rgba(22,27,34,0.9); border: 1px solid #30363d;
-  border-radius: 8px; padding: 0.6rem 0.9rem; font-size: 0.7rem;
-  backdrop-filter: blur(8px); text-align: right;
-  color: #8b949e;
+  background: rgba(13,14,20,0.9); border: 1px solid #181b26;
+  border-radius: 4px; padding: 0.6rem 0.9rem; font-size: 0.7rem;
+  backdrop-filter: blur(12px); text-align: right;
+  color: #8a91b0; font-family: 'JetBrains Mono', monospace;
 }
-.stats strong { color: #e6edf3; }
+.stats strong { color: #00f0ff; }
 </style>
 </head>
 <body>
 <canvas id="canvas"></canvas>
 <div class="legend" id="legend">
-  <h3>Agenter</h3>
+  <h3>Agent Network · ネットワーク</h3>
 </div>
 <div class="stats" id="stats">
-  <div>Noder: <strong id="nodeCount">0</strong></div>
-  <div>Kanter: <strong id="edgeCount">0</strong></div>
+  <div>Nodes: <strong id="nodeCount">0</strong></div>
+  <div>Edges: <strong id="edgeCount">0</strong></div>
   <div style="margin-top:0.3rem;font-size:0.65rem" id="fps"></div>
-  <div style="margin-top:0.3rem"><a href="/" style="color:#58a6ff;font-size:0.65rem">← Dashboard</a></div>
+  <div style="margin-top:0.3rem"><a href="/" style="color:#00f0ff;font-size:0.65rem;text-decoration:none">← Dashboard</a></div>
 </div>
 
 <script>
@@ -50,14 +51,14 @@ const SUPABASE_URL = '__SUPABASE_URL__';
 const SUPABASE_ANON_KEY = '__SUPABASE_ANON_KEY__';
 
 const AGENT_INFO = {
-  planner: { label: 'Planner', icon: '🧠', color: '#d29922', role: 'planner' },
-  'blender-agent': { label: 'Blender', icon: '🔷', color: '#58a6ff', role: 'blender' },
-  'memory-agent': { label: 'Memory', icon: '📚', color: '#bc8cff', role: 'memory' },
-  'tool-agent': { label: 'Tool', icon: '🔧', color: '#3fb950', role: 'tool' },
-  review: { label: 'Review', icon: '🔍', color: '#f85149', role: 'review' },
-  fallback: { label: 'Fallback', icon: '🛡️', color: '#8b949e', role: 'fallback' },
-  human: { label: 'Human', icon: '👤', color: '#58a6ff', role: 'human' },
-  tool_executor: { label: 'Executor', icon: '⚙️', color: '#f0883e', role: 'tool' },
+  planner: { label: 'Planner', icon: '🧠', color: '#ffe600', role: 'planner' },
+  'blender-agent': { label: 'Blender', icon: '🔷', color: '#00f0ff', role: 'blender' },
+  'memory-agent': { label: 'Memory', icon: '📚', color: '#9d4edd', role: 'memory' },
+  'tool-agent': { label: 'Tool', icon: '🔧', color: '#00f0ff', role: 'tool' },
+  review: { label: 'Review', icon: '🔍', color: '#ff0055', role: 'review' },
+  fallback: { label: 'Fallback', icon: '🛡️', color: '#8a91b0', role: 'fallback' },
+  human: { label: 'Human', icon: '👤', color: '#ffe600', role: 'human' },
+  tool_executor: { label: 'Executor', icon: '⚙️', color: '#00f0ff', role: 'tool' },
 };
 
 // ─── Force Graph ───
