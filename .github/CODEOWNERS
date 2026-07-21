@@ -1,0 +1,27 @@
+# CODEOWNERS — Article 8 requires two-distinct-maintainer review for
+# Charter amendments. CODEOWNERS expresses that expectation at the
+# GitHub PR layer. Adjust as co-maintainers are added.
+
+# Default owners for everything not otherwise listed
+*                       @TheLostNinjaHacker
+
+# Charter and licenses — owner must be the project's principal steward
+/CHARTER.md             @TheLostNinjaHacker
+/LICENSE                @TheLostNinjaHacker
+
+# Public-facing docs
+/README.md              @TheLostNinjaHacker
+/docs/                  @TheLostNinjaHacker
+
+# Core substrate guarded by Charter Article 4 (Boundaries) — needs second
+# eyes before any code lands.
+/shared/                @TheLostNinjaHacker
+/agents/                @TheLostNinjaHacker
+/mcp_servers/           @TheLostNinjaHacker
+/orchestrator/          @TheLostNinjaHacker
+
+# Tools and UI evolve faster; principal steward only.
+/tools/                 @TheLostNinjaHacker
+/ui/                    @TheLostNinjaHacker
+/tests/                 @TheLostNinjaHacker
+/sql/                   @TheLostNinjaHacker
