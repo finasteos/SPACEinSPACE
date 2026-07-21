@@ -1,6 +1,18 @@
 # CODEOWNERS — Article 8 requires two-distinct-maintainer review for
 # Charter amendments. CODEOWNERS expresses that expectation at the
-# GitHub PR layer. Adjust as co-maintainers are added.
+# GitHub PR layer.
+#
+# NOTE (transitional): this project currently has one maintainer
+# (@TheLostNinjaHacker). Article 8's two-distinct-maintainer rule is
+# therefore under-enforced at the GitHub-PR layer today. As a second
+# maintainer is added, distribute section ownership so that the
+# Charter, LICENSE, and substrate-primal paths are owned by a
+# maintainer *different* from the one proposing the PR — that is the
+# configuration Article 8's intent. Until then, charter amendments
+# go through a normal review by the principal steward only, and the
+# community is invited to challenge.
+#
+# Adjust paths as co-maintainers are added.
 
 # Default owners for everything not otherwise listed
 *                       @TheLostNinjaHacker

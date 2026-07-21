@@ -11,7 +11,7 @@ attacker compromise a running conductor, exfiltrate memories, gain
 RCE through an MCP ambassador, etc.), please open a *private*
 security advisory on GitHub:
 
-- Repository → Security → Advisories → "New draft security advisory"
+- [New draft security advisory](https://github.com/TheLostNinjaHacker/SPACEinSPACE/security/advisories/new)
 
 Please do not file public issues for unpatched vulnerabilities.
 

@@ -22,7 +22,10 @@ Article 8, amendments go through two-distinct-maintainer review.
 ## Pull request flow
 
 - Open an issue first if your change might affect the Charter.
-- Tag ambiguous Charter fits with the `charter-question` label.
+- For ambiguous Charter fits, **open a `charter-question` issue
+  first**, then reference that issue from the PR description. The
+  `charter-question` label is an *issue* label — don't apply it
+  directly to PRs.
 - Two distinct maintainers must sign off a Charter amendment (see
   Article 8).
 
@@ -30,11 +33,6 @@ Article 8, amendments go through two-distinct-maintainer review.
 
 We follow the [Contributor Covenant](CODE_OF_CONDUCT.md). Be patient
 with newcomers; the goal is a sovereign space, not a fortress.
-
-## Releasing
-
-Until the substrate reaches `v1.0`, semantic versioning is loose.
-After `v1.0`, breaking changes require a Charter update.
 
 ## License
 

@@ -38,4 +38,6 @@ If applicable, paste relevant stack traces or conductor output here.
 
 ## Suspected Charter / Article relevance
 
-If the bug touches a Charter Article, link to the relevant section.
+If the bug touches a [Charter Article](../../CHARTER.md), link to the
+relevant section (for example,
+`../../CHARTER.md#article-4--boundaries`).
