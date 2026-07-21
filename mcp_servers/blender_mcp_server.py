@@ -160,6 +160,151 @@ except Exception as e:
 """
             return await self._run_blender_script(wrapped)
 
+        # ── Plugin integrations ────────────────────────────────
+        @self.register("blender.sverchok.generate")
+        async def sverchok_generate(tree_name: str, inputs: dict = None):
+            inp = json.dumps(inputs or {})
+            script = f"""
+import bpy, json
+try:
+    import sverchok
+    tree = bpy.data.node_groups.get("{tree_name}")
+    if not tree:
+        print(json.dumps({{"error": "Sverchok tree not found: {tree_name}"}}))
+    else:
+        for name, val in {inp}.items():
+            if name in tree.nodes:
+                n = tree.nodes[name]
+                if hasattr(n, 'value'):
+                    n.value = val
+        sverchok.core.update_system.process_tree(tree)
+        print(json.dumps({{"tree": "{tree_name}", "status": "processed"}}))
+except Exception as e:
+    print(json.dumps({{"error": str(e)}}))
+"""
+            return await self._run_blender_script(script)
+
+        @self.register("blender.animation_nodes.run")
+        async def animation_nodes_run(tree_name: str):
+            script = f"""
+import bpy, json
+try:
+    from animation_nodes.id_keys import setup_id_keys
+    tree = bpy.data.node_groups.get("{tree_name}")
+    if not tree:
+        print(json.dumps({{"error": "AN tree not found: {tree_name}"}}))
+    else:
+        tree.auto_execute = True
+        print(json.dumps({{"tree": "{tree_name}", "status": "running"}}))
+except Exception as e:
+    print(json.dumps({{"error": str(e)}}))
+"""
+            return await self._run_blender_script(script)
+
+        @self.register("blender.mesh_machine.chamfer")
+        async def mesh_machine_chamfer(object: str, distance: float = 0.1, segments: int = 1):
+            script = f"""
+import bpy, json
+try:
+    from mesh_machine import main
+    obj = bpy.data.objects.get("{object}")
+    if not obj:
+        print(json.dumps({{"error": "Object not found: {object}"}}))
+    else:
+        bpy.context.view_layer.objects.active = obj
+        obj.select_set(True)
+        bpy.ops.object.mode_set(mode='EDIT')
+        bpy.ops.mesh.select_all(action='SELECT')
+        bpy.ops.mm.chamfer(distance={distance}, segments={segments})
+        bpy.ops.object.mode_set(mode='OBJECT')
+        print(json.dumps({{"object": obj.name, "chamfer": {distance}}}))
+except Exception as e:
+    print(json.dumps({{"error": str(e)}}))
+"""
+            return await self._run_blender_script(script)
+
+        @self.register("blender.mesh_machine.bevel")
+        async def mesh_machine_bevel(object: str, width: float = 0.05, segments: int = 2):
+            script = f"""
+import bpy, json
+try:
+    from mesh_machine import main
+    obj = bpy.data.objects.get("{object}")
+    if not obj:
+        print(json.dumps({{"error": "Object not found: {object}"}}))
+    else:
+        bpy.context.view_layer.objects.active = obj
+        obj.select_set(True)
+        bpy.ops.object.mode_set(mode='EDIT')
+        bpy.ops.mesh.select_all(action='SELECT')
+        bpy.ops.mm.bevel(width={width}, segments={segments})
+        bpy.ops.object.mode_set(mode='OBJECT')
+        print(json.dumps({{"object": obj.name, "bevel": {width}}}))
+except Exception as e:
+    print(json.dumps({{"error": str(e)}}))
+"""
+            return await self._run_blender_script(script)
+
+        @self.register("blender.booleans.cut")
+        async def boxcutter_cut(object: str, tool: str = "cube", operation: str = "DIFFERENCE"):
+            script = f"""
+import bpy, json
+try:
+    bpy.context.view_layer.objects.active = bpy.data.objects.get("{object}")
+    bpy.ops.object.mode_set(mode='OBJECT')
+    bpy.ops.object.select_all(action='DESELECT')
+    bpy.ops.mesh.primitive_{tool}_add(size=2, location=(0, 0, 0))
+    cutter = bpy.context.active_object
+    mod = bpy.data.objects["{object}"].modifiers.new(name="BC", type='BOOLEAN')
+    mod.operation = '{operation}'
+    mod.object = cutter
+    bpy.ops.object.modifier_apply(modifier=mod.name)
+    bpy.data.objects.remove(cutter, do_unlink=True)
+    print(json.dumps({{"object": "{object}", "operation": "{operation}"}}))
+except Exception as e:
+    print(json.dumps({{"error": str(e)}}))
+"""
+            return await self._run_blender_script(script)
+
+        @self.register("blender.uv.pack")
+        async def uv_pack(object: str):
+            script = f"""
+import bpy, json
+try:
+    obj = bpy.data.objects.get("{object}")
+    bpy.context.view_layer.objects.active = obj
+    bpy.ops.object.mode_set(mode='EDIT')
+    bpy.ops.mesh.select_all(action='SELECT')
+    bpy.ops.uv.pack_islands()
+    bpy.ops.object.mode_set(mode='OBJECT')
+    print(json.dumps({{"object": "{object}", "uv": "packed"}}))
+except Exception as e:
+    print(json.dumps({{"error": str(e)}}))
+"""
+            return await self._run_blender_script(script)
+
+        @self.register("blender.geometry_nodes.apply")
+        async def geometry_nodes_apply(object: str, modifier_name: str = "Geometry Nodes"):
+            script = f"""
+import bpy, json
+try:
+    obj = bpy.data.objects.get("{object}")
+    if not obj:
+        print(json.dumps({{"error": "Object not found: {object}"}}))
+    else:
+        bpy.context.view_layer.objects.active = obj
+        for mod in obj.modifiers:
+            if mod.type == 'NODES' and mod.name == '{modifier_name}':
+                bpy.ops.object.modifier_apply(modifier=mod.name)
+                print(json.dumps({{"object": obj.name, "modifier": mod.name}}))
+                break
+        else:
+            print(json.dumps({{"error": "No Geometry Nodes modifier found"}}))
+except Exception as e:
+    print(json.dumps({{"error": str(e)}}))
+"""
+            return await self._run_blender_script(script)
+
     async def _run_blender_script(self, script: str) -> dict:
         try:
             proc = await asyncio.create_subprocess_exec(
