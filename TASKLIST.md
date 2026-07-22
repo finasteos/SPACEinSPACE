@@ -29,7 +29,7 @@ python main.py              # Starta CLI
 | ✅ Scratchpad-manager (CRUD, section updates) | ❌ Planner infinite loop fix (P0) |
 | ✅ Memory-system (embed + retrieve + store) | ❌ Web search implementation (P1) |
 | ✅ LLM-wrapper (Ollama generate) | ❌ File read/write implementation (P1) |
-| ✅ Telemetry (span-tracking, latency) | ❌ Blender MCP inkoppling (P1) |
+| ✅ Telemetry (span-tracking, latency) | ✅ Blender MCP inkoppling (persistent, B0) |
 | ✅ Tool-registry (12 tools med scheman) | ❌ Tool registry integration (P1) |
 | ✅ Base agent-klass | ❌ Agent-register i Supabase (P2) |
 | ✅ Planner-agent (med loop-bugg) | ❌ Graceful shutdown (P2) |

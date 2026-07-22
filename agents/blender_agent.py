@@ -71,8 +71,11 @@ class BlenderAgent(BaseAgent):
     def _get_mcp(self):
         if self._mcp is None:
             try:
-                from mcp_servers.blender_mcp_server import BlenderMCPServer
-                self._mcp = BlenderMCPServer()
+                # B0 — share the conductor's persistent Blender (singleton),
+                # so the scene snapshot reflects the same live scene the tool
+                # calls mutate. BLENDER_MCP_MODE=oneshot for the legacy path.
+                from mcp_servers.persistent_blender import create_blender_ambassador
+                self._mcp = create_blender_ambassador()
             except Exception:
                 self._mcp = None
         return self._mcp

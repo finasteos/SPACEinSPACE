@@ -10,6 +10,18 @@ from typing import Optional
 from mcp_servers.base_mcp_server import BaseMCPServer
 
 
+# Are we running *inside* Blender (the persistent ambassador, launched via
+# `blender --background --python mcp_servers/blender_mcp_server.py`)? When bpy
+# is importable, tools execute in-process against the live scene, so state
+# persists across calls. When it is not (the conductor host, or a CI box
+# without Blender), tools fall back to the legacy one-shot subprocess.
+try:
+    import bpy  # noqa: F401  — only importable inside a Blender process
+    BLENDER_AVAILABLE = True
+except Exception:
+    BLENDER_AVAILABLE = False
+
+
 # ── Charter Article 4.3 — sandbox defaults ─────────────────────────────────
 # `blender.execute_script` runs *agent-authored* Python inside the Blender
 # process. Per CHARTER.md Article 4.3, this ambassador declares its own
@@ -48,6 +60,10 @@ class BlenderMCPServer(BaseMCPServer):
     def __init__(self, blender_path: str = "blender"):
         super().__init__("blender")
         self.blender_path = blender_path
+        # Persistent per-process namespace for in-Blender script execution.
+        # bpy state (bpy.data / the scene) is process-global, so successive
+        # tool calls in one Blender process see each other's objects.
+        self._script_globals: dict = {}
         # Charter Article 4.3 — compile the forbidden-pattern list once and
         # expose the human-readable labels for the witness log and for audits.
         self._forbidden_patterns = [
@@ -470,6 +486,54 @@ except Exception as e:
             return await self._run_blender_script(script)
 
     async def _run_blender_script(self, script: str) -> dict:
+        """Run a generated Blender script and return its parsed JSON result.
+
+        Two execution modes, chosen automatically:
+
+        * **In-process (persistent).** Inside Blender (``BLENDER_AVAILABLE``),
+          the script is exec'd against this process's live ``bpy`` scene, so
+          state persists across calls — ``create_object`` then
+          ``get_scene_info`` see the same scene. This is the B0 behaviour.
+        * **One-shot subprocess (legacy / rollback).** When ``bpy`` is not
+          importable (conductor host, CI without Blender), fall back to the
+          original ``blender --background --python-expr`` spawn. No continuity,
+          but preserves behaviour for ``BLENDER_MCP_MODE=oneshot``.
+        """
+        if BLENDER_AVAILABLE:
+            return self._exec_in_blender(script)
+        return await self._run_oneshot(script)
+
+    def _exec_in_blender(self, script: str) -> dict:
+        """Execute a script in-process, capturing its printed JSON line.
+
+        The scene lives in the shared Blender process (``bpy.data``), so objects
+        created by one call are visible to the next. A failing script returns a
+        structured error rather than killing the long-lived ambassador.
+        """
+        import io
+        import contextlib
+
+        buffer = io.StringIO()
+        try:
+            with contextlib.redirect_stdout(buffer):
+                # Scripts are either server-authored (trusted) or, for
+                # blender.execute_script, already filtered by the Article 4.3
+                # sandbox before reaching here.
+                exec(script, self._script_globals)  # noqa: S102
+        except Exception as e:
+            return {"success": False, "error": f"{type(e).__name__}: {e}"}
+        lines = [ln for ln in buffer.getvalue().strip().split("\n") if ln.strip()]
+        last = lines[-1] if lines else ""
+        try:
+            result = json.loads(last)
+            if isinstance(result, dict):
+                result.setdefault("success", True)
+                return result
+            return {"success": True, "result": result}
+        except json.JSONDecodeError:
+            return {"success": True, "raw_output": buffer.getvalue()[:500]}
+
+    async def _run_oneshot(self, script: str) -> dict:
         try:
             proc = await asyncio.create_subprocess_exec(
                 self.blender_path, "--background", "--python-expr", script,
