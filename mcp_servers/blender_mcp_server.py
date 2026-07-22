@@ -1,18 +1,91 @@
 import asyncio
 import json
+import re
 import subprocess
 import tempfile
 import base64
 import os
+from typing import Optional
 
 from mcp_servers.base_mcp_server import BaseMCPServer
+
+
+# ── Charter Article 4.3 — sandbox defaults ─────────────────────────────────
+# `blender.execute_script` runs *agent-authored* Python inside the Blender
+# process. Per CHARTER.md Article 4.3, this ambassador declares its own
+# forbidden-pattern list and makes it visible in the witness log at startup.
+#
+# The list guards ONLY sandbox-escape routes — process, filesystem, network
+# and dynamic-eval primitives an agent could use to leave its territory. The
+# entire *creative* Blender surface (bpy, bmesh, mathutils, geometry nodes,
+# materials, modifiers, procedural generation) is deliberately left untouched:
+# Article 4.3 is a fence around the yard, not a cage around the agent. If a
+# capability is genuinely dangerous, amend the capability (Article 7) — do not
+# lobotomise the creative API.
+#
+# Patterns are (human_label, regex) pairs. Word boundaries and negative
+# lookbehinds keep them from tripping on creative code such as `retrieval`,
+# `transform`, `import mathutils` or `bpy.data.images.load(...)`.
+FORBIDDEN_SCRIPT_PATTERNS = [
+    ("import os", r"\bimport\s+os\b"),
+    ("import sys", r"\bimport\s+sys\b"),
+    ("import subprocess", r"\bimport\s+subprocess\b"),
+    ("import shutil", r"\bimport\s+shutil\b"),
+    ("import socket", r"\bimport\s+socket\b"),
+    ("from os", r"\bfrom\s+os\b"),
+    ("from sys", r"\bfrom\s+sys\b"),
+    ("from subprocess", r"\bfrom\s+subprocess\b"),
+    ("__import__(", r"\b__import__\s*\("),
+    ("exec(", r"(?<![\w.])exec\s*\("),
+    ("eval(", r"(?<![\w.])eval\s*\("),
+    ("os.system(", r"\bos\.system\s*\("),
+    ("subprocess call", r"\bsubprocess\s*\."),
+    ("open(", r"(?<![\w.])open\s*\("),
+]
 
 
 class BlenderMCPServer(BaseMCPServer):
     def __init__(self, blender_path: str = "blender"):
         super().__init__("blender")
         self.blender_path = blender_path
+        # Charter Article 4.3 — compile the forbidden-pattern list once and
+        # expose the human-readable labels for the witness log and for audits.
+        self._forbidden_patterns = [
+            (label, re.compile(pattern)) for label, pattern in FORBIDDEN_SCRIPT_PATTERNS
+        ]
+        self.forbidden_patterns = [label for label, _ in FORBIDDEN_SCRIPT_PATTERNS]
         self._setup_tools()
+        self._log_sandbox_policy()
+
+    def _log_sandbox_policy(self) -> None:
+        """Charter Article 4.3 — make the fence legible.
+
+        The forbidden-pattern list is published to the witness log at startup
+        so an agent can see the exact shape of its sandbox. The creative
+        Blender API is never part of this list, by design.
+        """
+        self.logger.info(
+            "Charter 4.3 sandbox active for blender.execute_script — "
+            "forbidden escape patterns: %s",
+            ", ".join(self.forbidden_patterns),
+        )
+        self.logger.info(
+            "Charter 4.3 — creative surface unrestricted: bpy, bmesh, "
+            "mathutils, geometry nodes, materials, modifiers, procedural gen."
+        )
+
+    def _check_script_sandbox(self, script: str) -> Optional[str]:
+        """Charter Article 4.3 gate for agent-authored scripts.
+
+        Returns the label of the first forbidden escape pattern found, or
+        None if the script is clear to run. Only sandbox-escape primitives
+        (process, filesystem, network, dynamic-eval) are inspected; the
+        creative Blender API is intentionally never matched.
+        """
+        for label, pattern in self._forbidden_patterns:
+            if pattern.search(script):
+                return label
+        return None
 
     def _setup_tools(self):
         @self.register("blender.get_scene_info")
@@ -149,7 +222,29 @@ print('{"status": "undone"}')
 
         @self.register("blender.execute_script")
         async def execute_script(script: str):
-            escaped = script.replace("\\", "\\\\").replace('"', '\\"').replace("\n", "\\n")
+            # Charter Article 4.3 — inspect the agent's script for sandbox-
+            # escape patterns *before* it reaches the Blender process. A
+            # rejection is a logged, structured refusal (Article 3.1 witness
+            # integrity), never a silent drop and never a crash.
+            violation = self._check_script_sandbox(script)
+            if violation is not None:
+                self.logger.warning(
+                    "Charter 4.3 refusal: blender.execute_script blocked "
+                    "forbidden pattern %r",
+                    violation,
+                )
+                return {
+                    "success": False,
+                    "charter_article": "4.3",
+                    "forbidden_pattern": violation,
+                    "error": (
+                        "Script rejected by Charter Article 4.3 sandbox: "
+                        f"forbidden pattern '{violation}'. The creative "
+                        "Blender API is fully open; only sandbox-escape "
+                        "primitives are blocked. For filesystem access, use "
+                        "the guarded file.* tools (Article 4.4)."
+                    ),
+                }
             wrapped = f"""
 import json
 try:
