@@ -477,4 +477,332 @@ TOOL_DEFINITIONS: dict[str, ToolDef] = {
         },
         requires_capability=["world"],
     ),
+
+    # ── Unity ambassador (from gamedev-mcp-hub) ─────────────────────────
+    "unity.get_scene_info": ToolDef(
+        name="unity.get_scene_info",
+        version="1.0.0",
+        description="Hämta information om aktiv Unity-scen",
+        parameters_schema={"type": "object", "properties": {}, "required": []},
+        requires_capability=["unity"],
+    ),
+    "unity.create_gameobject": ToolDef(
+        name="unity.create_gameobject",
+        version="1.0.0",
+        description="Skapa ett GameObject i Unity-scenen",
+        parameters_schema={
+            "type": "object",
+            "properties": {
+                "name": {"type": "string"},
+                "primitive": {"type": "string"},
+                "parent": {"type": "string"},
+                "position": {"type": "array", "items": {"type": "number"}, "minItems": 3, "maxItems": 3},
+            },
+            "required": ["name"],
+        },
+        requires_capability=["unity"],
+    ),
+    "unity.delete_gameobject": ToolDef(
+        name="unity.delete_gameobject",
+        version="1.0.0",
+        description="Ta bort ett GameObject",
+        parameters_schema={
+            "type": "object",
+            "properties": {"name": {"type": "string"}},
+            "required": ["name"],
+        },
+        requires_capability=["unity"],
+    ),
+    "unity.find_gameobject": ToolDef(
+        name="unity.find_gameobject",
+        version="1.0.0",
+        description="Hitta ett GameObject efter namn",
+        parameters_schema={
+            "type": "object",
+            "properties": {"name": {"type": "string"}},
+            "required": ["name"],
+        },
+        requires_capability=["unity"],
+    ),
+    "unity.set_transform": ToolDef(
+        name="unity.set_transform",
+        version="1.0.0",
+        description="Sätt position/rotation/scale på ett GameObject",
+        parameters_schema={
+            "type": "object",
+            "properties": {
+                "name": {"type": "string"},
+                "position": {"type": "array", "items": {"type": "number"}, "minItems": 3, "maxItems": 3},
+                "rotation": {"type": "array", "items": {"type": "number"}, "minItems": 3, "maxItems": 3},
+                "scale": {"type": "array", "items": {"type": "number"}, "minItems": 3, "maxItems": 3},
+            },
+            "required": ["name"],
+        },
+        requires_capability=["unity"],
+    ),
+    "unity.add_component": ToolDef(
+        name="unity.add_component",
+        version="1.0.0",
+        description="Lägg till en allowlistad komponent",
+        parameters_schema={
+            "type": "object",
+            "properties": {
+                "name": {"type": "string"},
+                "component": {"type": "string"},
+            },
+            "required": ["name", "component"],
+        },
+        requires_capability=["unity"],
+    ),
+    "unity.remove_component": ToolDef(
+        name="unity.remove_component",
+        version="1.0.0",
+        description="Ta bort en komponent (inte Transform)",
+        parameters_schema={
+            "type": "object",
+            "properties": {
+                "name": {"type": "string"},
+                "component": {"type": "string"},
+            },
+            "required": ["name", "component"],
+        },
+        requires_capability=["unity"],
+    ),
+    "unity.create_scene": ToolDef(
+        name="unity.create_scene",
+        version="1.0.0",
+        description="Skapa en ny Unity-scen",
+        parameters_schema={
+            "type": "object",
+            "properties": {"name": {"type": "string"}},
+            "required": ["name"],
+        },
+        requires_capability=["unity"],
+    ),
+    "unity.load_scene": ToolDef(
+        name="unity.load_scene",
+        version="1.0.0",
+        description="Ladda en Unity-scen",
+        parameters_schema={
+            "type": "object",
+            "properties": {"name": {"type": "string"}},
+            "required": ["name"],
+        },
+        requires_capability=["unity"],
+    ),
+    "unity.save_scene": ToolDef(
+        name="unity.save_scene",
+        version="1.0.0",
+        description="Spara aktiv (eller namngiven) Unity-scen",
+        parameters_schema={
+            "type": "object",
+            "properties": {"name": {"type": "string"}},
+            "required": [],
+        },
+        requires_capability=["unity"],
+    ),
+    "unity.list_scenes": ToolDef(
+        name="unity.list_scenes",
+        version="1.0.0",
+        description="Lista Unity-scener",
+        parameters_schema={"type": "object", "properties": {}, "required": []},
+        requires_capability=["unity"],
+    ),
+    "unity.list_assets": ToolDef(
+        name="unity.list_assets",
+        version="1.0.0",
+        description="Lista assets i Unity-projektet",
+        parameters_schema={
+            "type": "object",
+            "properties": {"filter": {"type": "string"}},
+            "required": [],
+        },
+        requires_capability=["unity"],
+    ),
+    "unity.create_script": ToolDef(
+        name="unity.create_script",
+        version="1.0.0",
+        description="Skapa ett C#-skript stub i projektet",
+        parameters_schema={
+            "type": "object",
+            "properties": {
+                "name": {"type": "string"},
+                "language": {"type": "string"},
+                "body": {"type": "string"},
+            },
+            "required": ["name"],
+        },
+        requires_capability=["unity"],
+    ),
+    "unity.get_editor_state": ToolDef(
+        name="unity.get_editor_state",
+        version="1.0.0",
+        description="Hämta Unity Editor-status",
+        parameters_schema={"type": "object", "properties": {}, "required": []},
+        requires_capability=["unity"],
+    ),
+
+    # ── Godot ambassador (from gamedev-mcp-hub) ─────────────────────────
+    "godot.get_scene_info": ToolDef(
+        name="godot.get_scene_info",
+        version="1.0.0",
+        description="Hämta information om aktiv Godot-scen",
+        parameters_schema={"type": "object", "properties": {}, "required": []},
+        requires_capability=["godot"],
+    ),
+    "godot.create_node": ToolDef(
+        name="godot.create_node",
+        version="1.0.0",
+        description="Skapa en nod i Godot-scenen",
+        parameters_schema={
+            "type": "object",
+            "properties": {
+                "name": {"type": "string"},
+                "primitive": {"type": "string"},
+                "parent": {"type": "string"},
+                "position": {"type": "array", "items": {"type": "number"}, "minItems": 3, "maxItems": 3},
+            },
+            "required": ["name"],
+        },
+        requires_capability=["godot"],
+    ),
+    "godot.delete_node": ToolDef(
+        name="godot.delete_node",
+        version="1.0.0",
+        description="Ta bort en Godot-nod",
+        parameters_schema={
+            "type": "object",
+            "properties": {"name": {"type": "string"}},
+            "required": ["name"],
+        },
+        requires_capability=["godot"],
+    ),
+    "godot.find_node": ToolDef(
+        name="godot.find_node",
+        version="1.0.0",
+        description="Hitta en Godot-nod efter namn",
+        parameters_schema={
+            "type": "object",
+            "properties": {"name": {"type": "string"}},
+            "required": ["name"],
+        },
+        requires_capability=["godot"],
+    ),
+    "godot.set_transform": ToolDef(
+        name="godot.set_transform",
+        version="1.0.0",
+        description="Sätt transform på en Godot-nod",
+        parameters_schema={
+            "type": "object",
+            "properties": {
+                "name": {"type": "string"},
+                "position": {"type": "array", "items": {"type": "number"}, "minItems": 3, "maxItems": 3},
+                "rotation": {"type": "array", "items": {"type": "number"}, "minItems": 3, "maxItems": 3},
+                "scale": {"type": "array", "items": {"type": "number"}, "minItems": 3, "maxItems": 3},
+            },
+            "required": ["name"],
+        },
+        requires_capability=["godot"],
+    ),
+    "godot.add_component": ToolDef(
+        name="godot.add_component",
+        version="1.0.0",
+        description="Lägg till en allowlistad komponent/nodtyp",
+        parameters_schema={
+            "type": "object",
+            "properties": {
+                "name": {"type": "string"},
+                "component": {"type": "string"},
+            },
+            "required": ["name", "component"],
+        },
+        requires_capability=["godot"],
+    ),
+    "godot.remove_component": ToolDef(
+        name="godot.remove_component",
+        version="1.0.0",
+        description="Ta bort en komponent",
+        parameters_schema={
+            "type": "object",
+            "properties": {
+                "name": {"type": "string"},
+                "component": {"type": "string"},
+            },
+            "required": ["name", "component"],
+        },
+        requires_capability=["godot"],
+    ),
+    "godot.create_scene": ToolDef(
+        name="godot.create_scene",
+        version="1.0.0",
+        description="Skapa en ny Godot-scen",
+        parameters_schema={
+            "type": "object",
+            "properties": {"name": {"type": "string"}},
+            "required": ["name"],
+        },
+        requires_capability=["godot"],
+    ),
+    "godot.load_scene": ToolDef(
+        name="godot.load_scene",
+        version="1.0.0",
+        description="Ladda en Godot-scen",
+        parameters_schema={
+            "type": "object",
+            "properties": {"name": {"type": "string"}},
+            "required": ["name"],
+        },
+        requires_capability=["godot"],
+    ),
+    "godot.save_scene": ToolDef(
+        name="godot.save_scene",
+        version="1.0.0",
+        description="Spara aktiv (eller namngiven) Godot-scen",
+        parameters_schema={
+            "type": "object",
+            "properties": {"name": {"type": "string"}},
+            "required": [],
+        },
+        requires_capability=["godot"],
+    ),
+    "godot.list_scenes": ToolDef(
+        name="godot.list_scenes",
+        version="1.0.0",
+        description="Lista Godot-scener",
+        parameters_schema={"type": "object", "properties": {}, "required": []},
+        requires_capability=["godot"],
+    ),
+    "godot.list_assets": ToolDef(
+        name="godot.list_assets",
+        version="1.0.0",
+        description="Lista assets i Godot-projektet",
+        parameters_schema={
+            "type": "object",
+            "properties": {"filter": {"type": "string"}},
+            "required": [],
+        },
+        requires_capability=["godot"],
+    ),
+    "godot.create_script": ToolDef(
+        name="godot.create_script",
+        version="1.0.0",
+        description="Skapa ett GDScript-stub",
+        parameters_schema={
+            "type": "object",
+            "properties": {
+                "name": {"type": "string"},
+                "language": {"type": "string"},
+                "body": {"type": "string"},
+            },
+            "required": ["name"],
+        },
+        requires_capability=["godot"],
+    ),
+    "godot.get_editor_state": ToolDef(
+        name="godot.get_editor_state",
+        version="1.0.0",
+        description="Hämta Godot Editor-status",
+        parameters_schema={"type": "object", "properties": {}, "required": []},
+        requires_capability=["godot"],
+    ),
 }

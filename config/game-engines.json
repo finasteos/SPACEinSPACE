@@ -1,0 +1,67 @@
+{
+  "servers": {
+    "unity-nurture": {
+      "enabled": false,
+      "command": "npx",
+      "args": ["-y", "@nurture-tech/unity-mcp-runner"],
+      "category": "game-engine",
+      "priority": "high",
+      "description": "Unity Engine via nurture-tech MCP (external backend)",
+      "env": {
+        "UNITY_PROJECT_PATH": "${UNITY_PROJECT_PATH}",
+        "UNITY_EDITOR_PATH": "${UNITY_EDITOR_PATH}"
+      }
+    },
+    "godot": {
+      "enabled": false,
+      "command": "npx",
+      "args": ["-y", "godot-mcp"],
+      "category": "game-engine",
+      "priority": "high",
+      "description": "Godot Engine MCP (external backend)",
+      "env": {
+        "GODOT_PROJECT_PATH": "${GODOT_PROJECT_PATH}",
+        "GODOT_EDITOR_PATH": "${GODOT_EDITOR_PATH}"
+      }
+    },
+    "unreal": {
+      "enabled": false,
+      "command": "node",
+      "args": ["path/to/UnrealMCP/dist/index.js"],
+      "category": "game-engine",
+      "priority": "medium",
+      "description": "Unreal Engine integration (scaffold — not wired yet)"
+    },
+    "pixellab": {
+      "enabled": false,
+      "command": "npx",
+      "args": ["-y", "pixellab-mcp"],
+      "category": "art-generation",
+      "priority": "high",
+      "description": "Pixel art character/tileset generation",
+      "env": {
+        "PIXELLAB_API_KEY": "${PIXELLAB_API_KEY}"
+      }
+    },
+    "meshy": {
+      "enabled": false,
+      "command": "python",
+      "args": ["external-servers/meshy-ai-mcp-server/server.py"],
+      "category": "3d-generation",
+      "priority": "high",
+      "description": "Meshy AI text/image-to-3D (clone into external-servers/)",
+      "env": {
+        "MESHY_API_KEY": "${MESHY_API_KEY}"
+      }
+    },
+    "opgg": {
+      "enabled": false,
+      "command": "npx",
+      "args": ["-y", "@opgginc/opgg-mcp"],
+      "category": "analytics",
+      "priority": "low",
+      "description": "Gaming analytics"
+    }
+  },
+  "_comment": "Catalog imported from gamedev-mcp-hub. In-process Unity/Godot ambassadors are always available via mcp_servers/{unity,godot}_mcp_server.py. Set GAME_ENGINE_BACKEND=external to bridge to these packages."
+}

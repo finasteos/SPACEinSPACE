@@ -85,7 +85,8 @@ CREATE TABLE IF NOT EXISTS agents (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
     role TEXT NOT NULL CHECK (role IN (
-        'planner', 'blender', 'memory', 'tool', 'review', 'fallback', 'human'
+        'planner', 'blender', 'unity', 'godot', 'memory', 'tool',
+        'review', 'fallback', 'human', 'inhabitant', 'world'
     )),
     status TEXT NOT NULL DEFAULT 'idle' CHECK (status IN (
         'idle', 'active', 'thinking', 'waiting', 'error', 'paused'
@@ -96,6 +97,14 @@ CREATE TABLE IF NOT EXISTS agents (
     metadata JSONB DEFAULT '{}'::jsonb,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Keep role allowlist in sync on re-apply (CREATE TABLE IF NOT EXISTS is a no-op
+-- once the table exists). Safe to run every apply_schema.py invocation.
+ALTER TABLE agents DROP CONSTRAINT IF EXISTS agents_role_check;
+ALTER TABLE agents ADD CONSTRAINT agents_role_check CHECK (role IN (
+    'planner', 'blender', 'unity', 'godot', 'memory', 'tool',
+    'review', 'fallback', 'human', 'inhabitant', 'world'
+));
 
 CREATE INDEX IF NOT EXISTS idx_agents_status ON agents (status);
 CREATE INDEX IF NOT EXISTS idx_agents_heartbeat ON agents (last_heartbeat DESC);

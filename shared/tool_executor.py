@@ -102,6 +102,11 @@ class ToolExecutor:
             handler = blender_server.tools[name]
             self.register_handler(name, handler)
 
+    def register_mcp_server(self, server) -> None:
+        """Wire all tools from any BaseMCPServer-style ambassador."""
+        for name in getattr(server, "tools", {}).keys():
+            self.register_handler(name, server.tools[name])
+
     # ─── Built-ins ───────────────────────────────────────────
     def _register_builtins(self) -> None:
         @self.register("web.search")

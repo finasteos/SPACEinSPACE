@@ -30,6 +30,8 @@ from shared.telemetry import telemetry
 from agents.base_agent import BaseAgent
 from agents.planner_agent import PlannerAgent
 from agents.blender_agent import BlenderAgent
+from agents.unity_agent import UnityAgent
+from agents.godot_agent import GodotAgent
 from agents.memory_agent import MemoryAgent
 from agents.tool_agent import ToolAgent
 from agents.review_agent import ReviewAgent
@@ -78,6 +80,24 @@ class Conductor:
         except Exception:
             self.logger.info("Blender MCP not loaded — blender.* tools unavailable")
 
+        try:
+            from mcp_servers.unity_mcp_server import UnityMCPServer
+            self.tool_executor.register_mcp_server(UnityMCPServer())
+        except Exception:
+            self.logger.info("Unity MCP not loaded — unity.* tools unavailable")
+
+        try:
+            from mcp_servers.godot_mcp_server import GodotMCPServer
+            self.tool_executor.register_mcp_server(GodotMCPServer())
+        except Exception:
+            self.logger.info("Godot MCP not loaded — godot.* tools unavailable")
+
+        try:
+            from mcp_servers.world_engine_server import WorldEngineServer
+            self.tool_executor.register_mcp_server(WorldEngineServer())
+        except Exception:
+            self.logger.info("World MCP not loaded — world.* tools unavailable")
+
         # ─── Tool Tuning ──────────────────────────────────
         self.tool_tuning = None
         if use_tool_tuning:
@@ -97,6 +117,8 @@ class Conductor:
         agent_classes = {
             "planner": PlannerAgent,
             "blender": BlenderAgent,
+            "unity": UnityAgent,
+            "godot": GodotAgent,
             "memory": MemoryAgent,
             "tool": ToolAgent,
             "review": ReviewAgent,

@@ -19,7 +19,8 @@ console = Console()
 conductor = Conductor(tick_interval_ms=10.0)
 
 AGENT_COLORS = {
-    "planner": "bold cyan", "blender": "bold green", "memory": "bold magenta",
+    "planner": "bold cyan", "blender": "bold green", "unity": "bold bright_cyan",
+    "godot": "bold bright_green", "memory": "bold magenta",
     "tool": "bold yellow", "review": "bold red", "fallback": "bold white",
     "human": "bold blue", "world": "bold white",
 }
