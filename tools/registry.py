@@ -321,4 +321,62 @@ TOOL_DEFINITIONS: dict[str, ToolDef] = {
         },
         requires_capability=["blender"],
     ),
+
+    # ── Creative addon tools (Ucupaint / Tissue / A.N.T. Landscape) ─────
+    "blender.landscape.generate": ToolDef(
+        name="blender.landscape.generate",
+        version="1.0.0",
+        description="Generera procedurell terräng med A.N.T. Landscape",
+        parameters_schema={
+            "type": "object",
+            "properties": {
+                "subdivisions": {"type": "integer"},
+                "size": {"type": "number"},
+                "height": {"type": "number"},
+                "seed": {"type": "integer"},
+                "noise_type": {"type": "string", "enum": ["hetero_terrain", "multi_fractal", "hybrid_multi_fractal", "fractal", "ridged_multi_fractal", "vl_noise_turbulence"]},
+            },
+            "required": [],
+        },
+        failure_patterns={
+            "import_error": "A.N.T. Landscape inte aktiverat — enable ant_landscape (bundled)",
+        },
+        requires_capability=["blender", "ant_landscape"],
+    ),
+    "blender.tissue.tessellate": ToolDef(
+        name="blender.tissue.tessellate",
+        version="1.0.0",
+        description="Tessellera ett basobjekt med en komponent via Tissue",
+        parameters_schema={
+            "type": "object",
+            "properties": {
+                "base_object": {"type": "string"},
+                "component_object": {"type": "string"},
+            },
+            "required": ["base_object", "component_object"],
+        },
+        failure_patterns={
+            "import_error": "Tissue inte aktiverat — enable tissue extension",
+        },
+        requires_capability=["blender", "tissue"],
+    ),
+    "blender.texture.layer": ToolDef(
+        name="blender.texture.layer",
+        version="1.0.0",
+        description="Lägg till ett texturlager på ett objekt via Ucupaint",
+        parameters_schema={
+            "type": "object",
+            "properties": {
+                "object": {"type": "string"},
+                "layer_name": {"type": "string"},
+                "layer_type": {"type": "string", "enum": ["COLOR", "IMAGE", "NORMAL", "MASK"]},
+                "color": {"type": "array", "items": {"type": "number"}, "minItems": 4, "maxItems": 4},
+            },
+            "required": ["object"],
+        },
+        failure_patterns={
+            "import_error": "Ucupaint inte installerat — enable ucupaint addon",
+        },
+        requires_capability=["blender", "ucupaint"],
+    ),
 }

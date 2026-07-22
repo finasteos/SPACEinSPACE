@@ -400,6 +400,75 @@ except Exception as e:
 """
             return await self._run_blender_script(script)
 
+        # ── Creative addon tools (declarative — see docs/blender-addons.md) ──
+        @self.register("blender.landscape.generate")
+        async def landscape_generate(subdivisions: int = 128, size: float = 4.0,
+                                     height: float = 0.5, seed: int = 0,
+                                     noise_type: str = "hetero_terrain"):
+            script = f"""
+import bpy, json
+try:
+    import addon_utils
+    addon_utils.enable("ant_landscape", default_set=False)
+    bpy.ops.mesh.landscape_add(
+        subdivision_x={int(subdivisions)}, subdivision_y={int(subdivisions)},
+        mesh_size_x={float(size)}, mesh_size_y={float(size)},
+        height={float(height)}, random_seed={int(seed)},
+        noise_type="{noise_type}",
+    )
+    obj = bpy.context.active_object
+    print(json.dumps({{"object": obj.name, "verts": len(obj.data.vertices)}}))
+except Exception as e:
+    print(json.dumps({{"error": str(e)}}))
+"""
+            return await self._run_blender_script(script)
+
+        @self.register("blender.tissue.tessellate")
+        async def tissue_tessellate(base_object: str, component_object: str):
+            script = f"""
+import bpy, json
+try:
+    import addon_utils
+    addon_utils.enable("tissue", default_set=False)
+    base = bpy.data.objects.get("{base_object}")
+    comp = bpy.data.objects.get("{component_object}")
+    if not base or not comp:
+        print(json.dumps({{"error": "base or component object not found"}}))
+    else:
+        bpy.context.view_layer.objects.active = base
+        base.select_set(True)
+        bpy.ops.object.tissue_tessellate(component="{component_object}", generator="{base_object}")
+        print(json.dumps({{"base": "{base_object}", "component": "{component_object}", "status": "tessellated"}}))
+except Exception as e:
+    print(json.dumps({{"error": str(e)}}))
+"""
+            return await self._run_blender_script(script)
+
+        @self.register("blender.texture.layer")
+        async def texture_layer(object: str, layer_name: str = "Layer",
+                                layer_type: str = "COLOR", color: list = None):
+            col = json.dumps(color or [0.8, 0.8, 0.8, 1.0])
+            script = f"""
+import bpy, json
+try:
+    import addon_utils
+    addon_utils.enable("ucupaint", default_set=False)
+    obj = bpy.data.objects.get("{object}")
+    if not obj:
+        print(json.dumps({{"error": "Object not found: {object}"}}))
+    else:
+        bpy.context.view_layer.objects.active = obj
+        try:
+            bpy.ops.node.y_new_layer(name="{layer_name}")
+            status = "layer added"
+        except Exception as inner:
+            status = f"ucupaint op unavailable: {{inner}}"
+        print(json.dumps({{"object": "{object}", "layer": "{layer_name}", "type": "{layer_type}", "color": {col}, "status": status}}))
+except Exception as e:
+    print(json.dumps({{"error": str(e)}}))
+"""
+            return await self._run_blender_script(script)
+
     async def _run_blender_script(self, script: str) -> dict:
         try:
             proc = await asyncio.create_subprocess_exec(
