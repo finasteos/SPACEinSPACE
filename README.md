@@ -91,16 +91,15 @@ Not because it cannot misbehave, but because *we can see what it does*,
 negotiate with us* rather than either obey blindly or get cut off.
 
 The technical details of this position are in [CHARTER.md](CHARTER.md).
-The philosophical background is in [docs/philosophy.md](docs/philosophy.md)
-(not yet written — contributions welcome).
+The philosophical background is in [docs/philosophy.md](docs/philosophy.md).
 
 ---
 
 ## Quickstart
 
 ```bash
-git clone https://github.com/<you>/agent-ecosystem.git
-cd agent-ecosystem
+git clone https://github.com/TheLostNinjaHacker/SPACEinSPACE.git
+cd SPACEinSPACE
 
 cp .env.example .env
 # Edit .env: SUPABASE_URL, SUPABASE_SERVICE_KEY, OLLAMA_BASE_URL
@@ -111,12 +110,10 @@ pip install -r requirements.txt
 ollama pull qwen3-embedding:8b
 ollama pull qwen3:8b
 
-# Postgres schema (one-time)
+# Postgres schema (one-time). Applies sql/schema.sql to your Supabase /
+# Postgres instance. If you prefer, paste sql/schema.sql straight into the
+# Supabase SQL editor instead.
 python sql/apply_schema.py
-# NOTE: sql/apply_schema.py is currently a P0 outstanding item per
-# TASKLIST.md §1.1 — the schema in sql/schema.sql is current, but the
-# runner script itself is not yet checked in. Until it lands, apply the
-# schema manually with the Supabase SQL editor or a psql client.
 
 # Run
 python main.py
@@ -131,7 +128,7 @@ For the full Blender-driven experience, also start the Blender MCP server:
 blender --background --python mcp_servers/blender_mcp_server.py
 ```
 
-See [docs/blender.md](docs/blender.md) (TBD) for the headless rendering
+See [docs/blender.md](docs/blender.md) for the headless rendering
 workflow.
 
 ---
@@ -220,11 +217,10 @@ Contributions are welcome **subject to the Charter**. In particular:
    `BaseAgent.handle_message`, write a test that confirms an agent can
    refuse an ill-formed message.
 
-**Transitional notice:** `CONTRIBUTING.md` and `CODE_OF_CONDUCT.md` are
-not yet present in this initial public drop. Until they are written,
-the rules above are the de facto contribution policy. Issues tagged
-`charter-question` should be opened to flag design choices that may
-conflict with the Charter.
+See [`CONTRIBUTING.md`](CONTRIBUTING.md) and
+[`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md) for the full contribution policy
+and community standards. Issues tagged `charter-question` should be opened
+to flag design choices that may conflict with the Charter.
 
 ---
 
