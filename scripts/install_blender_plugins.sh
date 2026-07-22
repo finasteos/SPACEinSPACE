@@ -202,6 +202,21 @@ install_all() {
     install_extension "fluent" || install_github_release "anderth/Fluent" "fluent"
     install_extension "modifier_list" || install_github_release "mrachinskiy/ModifierList" "modifier_list"
 
+    # ── Procedural & generative (additions, repo-reconciled) ────────────
+    # New OPEN-SOURCE addons that were not already covered above. See
+    # docs/blender-addons.md for the full reconciliation. Proprietary / paid
+    # picks (Quad Remesher, Render+, BlenderKit "space kits") are intentionally
+    # omitted — this project is AGPL and refuses to lean on closed tools
+    # (CHARTER.md). Procedural "space" (starfields, nebulae, planets,
+    # atmosphere) is better built with the Sverchok + Geometry Nodes stack
+    # already installed above than bought as paid asset packs.
+    echo ""
+    echo "━━━ Procedural & generative (additions) ───────────────────"
+    install_extension "ucupaint" || install_github_release "ucupumar/ucupaint" "ucupaint"                 # layered, scriptable texturing
+    install_extension "tissue" || install_github_release "alessandro-zomparelli/tissue" "tissue"          # tessellation / generative patterns
+    install_extension "polyquilt" || install_github_release "sakana3/PolyQuilt" "PolyQuilt"               # sketch retopology (occasional manual touch-up)
+    enable_bundled "ant_landscape"   # A.N.T. Landscape — procedural terrain (bundled)
+
     # ── pip for AI plugins ──────────────────────────────────────
     echo ""
     echo "━━━ Python dependencies (pip) ─────────────────────────────"
@@ -223,6 +238,7 @@ install_all() {
     echo "🔧 Enable: Öppna Blender → Preferences → Add-ons, sök och bocka i:"
     echo "   • Sverchok  • Animation Nodes  • TexTools"
     echo "   • RetopoFlow  • CAD Sketcher  • Dream Textures  • MeasureIt"
+    echo "   • Ucupaint  • Tissue  • A.N.T. Landscape  • PolyQuilt"
     echo ""
     echo "📌 Manually install via Blender → Preferences → Add-ons → Get Extensions:"
     echo "   • Mesh Machine   • BoxCutter   • HardOps"
