@@ -85,7 +85,7 @@ CREATE TABLE IF NOT EXISTS agents (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
     role TEXT NOT NULL CHECK (role IN (
-        'planner', 'blender', 'unity', 'godot', 'memory', 'tool',
+        'planner', 'blender', 'unity', 'godot', 'pixellab', 'meshy', 'memory', 'tool',
         'review', 'fallback', 'human', 'inhabitant', 'world'
     )),
     status TEXT NOT NULL DEFAULT 'idle' CHECK (status IN (
@@ -102,7 +102,7 @@ CREATE TABLE IF NOT EXISTS agents (
 -- once the table exists). Safe to run every apply_schema.py invocation.
 ALTER TABLE agents DROP CONSTRAINT IF EXISTS agents_role_check;
 ALTER TABLE agents ADD CONSTRAINT agents_role_check CHECK (role IN (
-    'planner', 'blender', 'unity', 'godot', 'memory', 'tool',
+    'planner', 'blender', 'unity', 'godot', 'pixellab', 'meshy', 'memory', 'tool',
     'review', 'fallback', 'human', 'inhabitant', 'world'
 ));
 

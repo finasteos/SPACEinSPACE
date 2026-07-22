@@ -33,23 +33,23 @@
       "description": "Unreal Engine integration (scaffold — not wired yet)"
     },
     "pixellab": {
-      "enabled": false,
-      "command": "npx",
-      "args": ["-y", "pixellab-mcp"],
+      "enabled": true,
+      "command": "python",
+      "args": ["-m", "mcp_servers.pixellab_mcp_server"],
       "category": "art-generation",
       "priority": "high",
-      "description": "Pixel art character/tileset generation",
+      "description": "PixelLab pixel art (in-process ambassador; stub without key)",
       "env": {
         "PIXELLAB_API_KEY": "${PIXELLAB_API_KEY}"
       }
     },
     "meshy": {
-      "enabled": false,
+      "enabled": true,
       "command": "python",
-      "args": ["external-servers/meshy-ai-mcp-server/server.py"],
+      "args": ["-m", "mcp_servers.meshy_mcp_server"],
       "category": "3d-generation",
       "priority": "high",
-      "description": "Meshy AI text/image-to-3D (clone into external-servers/)",
+      "description": "Meshy text/image-to-3D (in-process ambassador; stub without key)",
       "env": {
         "MESHY_API_KEY": "${MESHY_API_KEY}"
       }
@@ -63,5 +63,5 @@
       "description": "Gaming analytics"
     }
   },
-  "_comment": "Catalog imported from gamedev-mcp-hub. In-process Unity/Godot ambassadors are always available via mcp_servers/{unity,godot}_mcp_server.py. Set GAME_ENGINE_BACKEND=external to bridge to these packages."
+  "_comment": "In-process ambassadors: unity/godot/pixellab/meshy via mcp_servers/*. External packages remain optional bridges."
 }

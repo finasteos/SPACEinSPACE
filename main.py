@@ -20,7 +20,8 @@ conductor = Conductor(tick_interval_ms=10.0)
 
 AGENT_COLORS = {
     "planner": "bold cyan", "blender": "bold green", "unity": "bold bright_cyan",
-    "godot": "bold bright_green", "memory": "bold magenta",
+    "godot": "bold bright_green", "pixellab": "bold bright_magenta",
+    "meshy": "bold bright_yellow", "memory": "bold magenta",
     "tool": "bold yellow", "review": "bold red", "fallback": "bold white",
     "human": "bold blue", "world": "bold white",
 }

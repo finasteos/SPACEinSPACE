@@ -32,6 +32,8 @@ from agents.planner_agent import PlannerAgent
 from agents.blender_agent import BlenderAgent
 from agents.unity_agent import UnityAgent
 from agents.godot_agent import GodotAgent
+from agents.pixellab_agent import PixelLabAgent
+from agents.meshy_agent import MeshyAgent
 from agents.memory_agent import MemoryAgent
 from agents.tool_agent import ToolAgent
 from agents.review_agent import ReviewAgent
@@ -98,6 +100,18 @@ class Conductor:
         except Exception:
             self.logger.info("World MCP not loaded — world.* tools unavailable")
 
+        try:
+            from mcp_servers.pixellab_mcp_server import PixelLabMCPServer
+            self.tool_executor.register_mcp_server(PixelLabMCPServer())
+        except Exception:
+            self.logger.info("PixelLab MCP not loaded — pixellab.* tools unavailable")
+
+        try:
+            from mcp_servers.meshy_mcp_server import MeshyMCPServer
+            self.tool_executor.register_mcp_server(MeshyMCPServer())
+        except Exception:
+            self.logger.info("Meshy MCP not loaded — meshy.* tools unavailable")
+
         # ─── Tool Tuning ──────────────────────────────────
         self.tool_tuning = None
         if use_tool_tuning:
@@ -119,6 +133,8 @@ class Conductor:
             "blender": BlenderAgent,
             "unity": UnityAgent,
             "godot": GodotAgent,
+            "pixellab": PixelLabAgent,
+            "meshy": MeshyAgent,
             "memory": MemoryAgent,
             "tool": ToolAgent,
             "review": ReviewAgent,

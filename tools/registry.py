@@ -805,4 +805,152 @@ TOOL_DEFINITIONS: dict[str, ToolDef] = {
         parameters_schema={"type": "object", "properties": {}, "required": []},
         requires_capability=["godot"],
     ),
+
+    # ── PixelLab ambassador ─────────────────────────────────────────────
+    "pixellab.generate_pixflux": ToolDef(
+        name="pixellab.generate_pixflux",
+        version="1.0.0",
+        description="Generera pixel art från text (Pixflux)",
+        parameters_schema={
+            "type": "object",
+            "properties": {
+                "description": {"type": "string"},
+                "width": {"type": "integer"},
+                "height": {"type": "integer"},
+                "negative_description": {"type": "string"},
+                "text_guidance_scale": {"type": "number"},
+                "no_background": {"type": "boolean"},
+                "outline": {"type": "string"},
+                "shading": {"type": "string"},
+                "detail": {"type": "string"},
+                "save_to": {"type": "string"},
+            },
+            "required": ["description"],
+        },
+        timeout_ms=120000,
+        requires_capability=["pixellab"],
+    ),
+    "pixellab.rotate": ToolDef(
+        name="pixellab.rotate",
+        version="1.0.0",
+        description="Rotera en pixel-art karaktär till annan riktning",
+        parameters_schema={
+            "type": "object",
+            "properties": {
+                "image_base64": {"type": "string"},
+                "to_direction": {"type": "string"},
+                "from_direction": {"type": "string"},
+                "width": {"type": "integer"},
+                "height": {"type": "integer"},
+                "save_to": {"type": "string"},
+            },
+            "required": ["image_base64", "to_direction"],
+        },
+        timeout_ms=120000,
+        requires_capability=["pixellab"],
+    ),
+    "pixellab.get_balance": ToolDef(
+        name="pixellab.get_balance",
+        version="1.0.0",
+        description="Kolla PixelLab-saldo",
+        parameters_schema={"type": "object", "properties": {}, "required": []},
+        requires_capability=["pixellab"],
+    ),
+
+    # ── Meshy ambassador ────────────────────────────────────────────────
+    "meshy.create_text_to_3d": ToolDef(
+        name="meshy.create_text_to_3d",
+        version="1.0.0",
+        description="Skapa text-to-3D uppgift (preview eller refine)",
+        parameters_schema={
+            "type": "object",
+            "properties": {
+                "prompt": {"type": "string"},
+                "mode": {"type": "string", "enum": ["preview", "refine"]},
+                "preview_task_id": {"type": "string"},
+                "should_remesh": {"type": "boolean"},
+                "enable_pbr": {"type": "boolean"},
+                "ai_model": {"type": "string"},
+            },
+            "required": [],
+        },
+        timeout_ms=60000,
+        requires_capability=["meshy"],
+    ),
+    "meshy.get_text_to_3d": ToolDef(
+        name="meshy.get_text_to_3d",
+        version="1.0.0",
+        description="Hämta status för text-to-3D uppgift",
+        parameters_schema={
+            "type": "object",
+            "properties": {"task_id": {"type": "string"}},
+            "required": ["task_id"],
+        },
+        requires_capability=["meshy"],
+    ),
+    "meshy.wait_text_to_3d": ToolDef(
+        name="meshy.wait_text_to_3d",
+        version="1.0.0",
+        description="Vänta tills text-to-3D uppgift är klar",
+        parameters_schema={
+            "type": "object",
+            "properties": {
+                "task_id": {"type": "string"},
+                "timeout_s": {"type": "number"},
+                "poll_interval_s": {"type": "number"},
+            },
+            "required": ["task_id"],
+        },
+        timeout_ms=920000,
+        requires_capability=["meshy"],
+    ),
+    "meshy.create_image_to_3d": ToolDef(
+        name="meshy.create_image_to_3d",
+        version="1.0.0",
+        description="Skapa image-to-3D uppgift från URL/data-URI",
+        parameters_schema={
+            "type": "object",
+            "properties": {
+                "image_url": {"type": "string"},
+                "ai_model": {"type": "string"},
+                "should_remesh": {"type": "boolean"},
+            },
+            "required": ["image_url"],
+        },
+        timeout_ms=60000,
+        requires_capability=["meshy"],
+    ),
+    "meshy.get_image_to_3d": ToolDef(
+        name="meshy.get_image_to_3d",
+        version="1.0.0",
+        description="Hämta status för image-to-3D uppgift",
+        parameters_schema={
+            "type": "object",
+            "properties": {"task_id": {"type": "string"}},
+            "required": ["task_id"],
+        },
+        requires_capability=["meshy"],
+    ),
+    "meshy.get_balance": ToolDef(
+        name="meshy.get_balance",
+        version="1.0.0",
+        description="Kolla Meshy-krediter",
+        parameters_schema={"type": "object", "properties": {}, "required": []},
+        requires_capability=["meshy"],
+    ),
+    "meshy.download_model": ToolDef(
+        name="meshy.download_model",
+        version="1.0.0",
+        description="Ladda ner modell-URL till assets/meshy/",
+        parameters_schema={
+            "type": "object",
+            "properties": {
+                "url": {"type": "string"},
+                "filename": {"type": "string"},
+            },
+            "required": ["url"],
+        },
+        timeout_ms=120000,
+        requires_capability=["meshy"],
+    ),
 }
