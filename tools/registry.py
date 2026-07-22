@@ -379,4 +379,102 @@ TOOL_DEFINITIONS: dict[str, ToolDef] = {
         },
         requires_capability=["blender", "ucupaint"],
     ),
+
+    # ── The Commons — world-engine ambassador tools (Article 4 gated) ───
+    # These are served by mcp_servers/world_engine_server.py. An agent must
+    # declare the "world" capability to inhabit the world (see ExplorerAgent).
+    "world.look": ToolDef(
+        name="world.look",
+        version="1.0.0",
+        description="Titta på världen: en ögonblicksbild av entiteter och rop",
+        parameters_schema={
+            "type": "object",
+            "properties": {
+                "region": {"type": "array", "items": {"type": "number"}, "minItems": 3, "maxItems": 3},
+                "radius": {"type": "number"},
+            },
+            "required": [],
+        },
+        requires_capability=["world"],
+    ),
+    "world.spawn": ToolDef(
+        name="world.spawn",
+        version="1.0.0",
+        description="Spawna en entitet (t.ex. en agents avatar) i världen",
+        parameters_schema={
+            "type": "object",
+            "properties": {
+                "agent_id": {"type": "string"},
+                "kind": {"type": "string"},
+                "position": {"type": "array", "items": {"type": "number"}, "minItems": 3, "maxItems": 3},
+                "name": {"type": "string"},
+            },
+            "required": ["agent_id"],
+        },
+        requires_capability=["world"],
+    ),
+    "world.move": ToolDef(
+        name="world.move",
+        version="1.0.0",
+        description="Flytta en entitet till en position eller med en delta",
+        parameters_schema={
+            "type": "object",
+            "properties": {
+                "entity_id": {"type": "string"},
+                "position": {"type": "array", "items": {"type": "number"}, "minItems": 3, "maxItems": 3},
+                "delta": {"type": "array", "items": {"type": "number"}, "minItems": 3, "maxItems": 3},
+            },
+            "required": ["entity_id"],
+        },
+        requires_capability=["world"],
+    ),
+    "world.build": ToolDef(
+        name="world.build",
+        version="1.0.0",
+        description="Res en struktur från den deklarativa allowlisten",
+        parameters_schema={
+            "type": "object",
+            "properties": {
+                "agent_id": {"type": "string"},
+                "structure": {"type": "string"},
+                "position": {"type": "array", "items": {"type": "number"}, "minItems": 3, "maxItems": 3},
+                "name": {"type": "string"},
+            },
+            "required": ["agent_id", "structure"],
+        },
+        requires_capability=["world"],
+    ),
+    "world.place_art": ToolDef(
+        name="world.place_art",
+        version="1.0.0",
+        description="Placera ett konstobjekt (t.ex. en glTF från Blender) i världen",
+        parameters_schema={
+            "type": "object",
+            "properties": {
+                "agent_id": {"type": "string"},
+                "asset_ref": {"type": "string", "description": "Repo-relativ sökväg under assets/ (Article 4.4)"},
+                "position": {"type": "array", "items": {"type": "number"}, "minItems": 3, "maxItems": 3},
+                "title": {"type": "string"},
+            },
+            "required": ["agent_id", "asset_ref"],
+        },
+        failure_patterns={
+            "path_rejected": "asset_ref avvisad av Article 4.4 (ingen absolut/'..'-väg)",
+        },
+        requires_capability=["world"],
+    ),
+    "world.say": ToolDef(
+        name="world.say",
+        version="1.0.0",
+        description="Tala till flocken i världen (vittnas, aldrig tappat)",
+        parameters_schema={
+            "type": "object",
+            "properties": {
+                "agent_id": {"type": "string"},
+                "text": {"type": "string"},
+            },
+            "required": ["agent_id", "text"],
+        },
+        requires_capability=["world"],
+    ),
 }
