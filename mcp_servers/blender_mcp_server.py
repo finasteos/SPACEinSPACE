@@ -485,6 +485,27 @@ except Exception as e:
 """
             return await self._run_blender_script(script)
 
+        @self.register("blender.export_gltf")
+        async def export_gltf(filepath: str, selection_only: bool = False, fmt: str = "GLB"):
+            export_format = "GLB" if (fmt or "GLB").upper() == "GLB" else "GLTF_SEPARATE"
+            path_lit = json.dumps(filepath)
+            # Server-authored (trusted) script — uses os only to ensure the
+            # output dir exists; it does not pass through the execute_script
+            # sandbox (that gate is for agent-authored scripts).
+            script = f"""
+import bpy, json, os
+try:
+    path = {path_lit}
+    d = os.path.dirname(path)
+    if d:
+        os.makedirs(d, exist_ok=True)
+    bpy.ops.export_scene.gltf(filepath=path, export_format="{export_format}", use_selection={bool(selection_only)})
+    print(json.dumps({{"filepath": path, "format": "{export_format}", "exists": os.path.exists(path)}}))
+except Exception as e:
+    print(json.dumps({{"error": str(e)}}))
+"""
+            return await self._run_blender_script(script)
+
     async def _run_blender_script(self, script: str) -> dict:
         """Run a generated Blender script and return its parsed JSON result.
 

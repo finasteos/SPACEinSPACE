@@ -379,6 +379,21 @@ TOOL_DEFINITIONS: dict[str, ToolDef] = {
         },
         requires_capability=["blender", "ucupaint"],
     ),
+    "blender.export_gltf": ToolDef(
+        name="blender.export_gltf",
+        version="1.0.0",
+        description="Exportera scenen till glTF/GLB (webb, Three.js, Godot, Commons)",
+        parameters_schema={
+            "type": "object",
+            "properties": {
+                "filepath": {"type": "string", "description": "Output path (.glb or .gltf)"},
+                "selection_only": {"type": "boolean"},
+                "fmt": {"type": "string", "enum": ["GLB", "GLTF_SEPARATE"]},
+            },
+            "required": ["filepath"],
+        },
+        requires_capability=["blender"],
+    ),
 
     # ── The Commons — world-engine ambassador tools (Article 4 gated) ───
     # These are served by mcp_servers/world_engine_server.py. An agent must
