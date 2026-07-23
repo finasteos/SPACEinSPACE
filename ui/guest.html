@@ -127,8 +127,14 @@
       glb: "https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@main/2.0/Avocado/glTF-Binary/Avocado.glb", screenshot: null },
   ];
 
-  async function loadCommons() { /* return (await fetch('/api/commons')).json(); */ return SAMPLE_WORLD; }
-  async function loadGallery() { /* return (await fetch('/api/gallery')).json(); */ return SAMPLE_GALLERY; }
+  async function loadCommons() {
+    try { const r = await fetch('/api/commons'); if (r.ok) return await r.json(); } catch (e) {}
+    return SAMPLE_WORLD;  // static/offline fallback
+  }
+  async function loadGallery() {
+    try { const r = await fetch('/api/gallery'); if (r.ok) { const g = await r.json(); if (Array.isArray(g) && g.length) return g; } } catch (e) {}
+    return SAMPLE_GALLERY;  // stand-in models when no live exports
+  }
 
   const el = (t, cls, html) => { const n = document.createElement(t); if (cls) n.className = cls; if (html != null) n.innerHTML = html; return n; };
 
@@ -165,15 +171,24 @@
 
   // presence (sample: adds a guest locally; live: POST /api/commons/join)
   let world;
-  document.getElementById("join").addEventListener("click", () => {
+  document.getElementById("join").addEventListener("click", async () => {
     const handle = (document.getElementById("handle").value || "").trim();
     if (!/^[A-Za-z0-9_-]{1,48}$/.test(handle)) { document.getElementById("who").textContent = "invalid handle"; return; }
-    if (!world.entities.some(e => e.id === handle)) {
-      world.entities.push({ id: handle, kind: "guest", position: [0, 0, 0], owner: handle });
-      world.recent_says.push({ agent_id: handle, text: "joined The Commons.", tick: ++world.tick });
+    try {
+      const r = await fetch("/api/commons/join", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ handle }),
+      });
+      if (r.ok) { world = await loadCommons(); renderCommons(world); }
+      else throw new Error("join failed");
+    } catch (e) {
+      // static/offline fallback: reflect the visit locally
+      if (!world.entities.some(x => x.id === handle)) {
+        world.entities.push({ id: handle, kind: "guest", position: [0, 0, 0], owner: handle });
+      }
+      renderCommons(world);
     }
     document.getElementById("who").textContent = `you are visiting as: ${handle}`;
-    renderCommons(world);
   });
 
   (async () => {

@@ -30,3 +30,21 @@ async def join_as_guest(backend, handle: str, position: Optional[list] = None) -
 def present_guests(snapshot: dict) -> list:
     """Filter a world snapshot (from ``world.look``) to its guest entities."""
     return [e for e in (snapshot or {}).get("entities", []) if e.get("kind") == "guest"]
+
+
+async def world_snapshot(backend) -> dict:
+    """Return the public Commons snapshot for GET /api/commons.
+
+    The shape (tick, entity_count, entities, recent_says) is exactly what
+    ui/guest.html consumes; the internal ``success`` flag is dropped.
+    """
+    snap = await backend.look()
+    snap.pop("success", None)
+    return snap
+
+
+async def seed_demo_world(backend) -> None:
+    """Give the guest view a small, non-empty starting Commons."""
+    await backend.spawn(agent_id="explorer", kind="avatar", position=[0, 0, 0])
+    await backend.spawn(agent_id="curator", kind="avatar", position=[220, -140, 0])
+    await backend.say(agent_id="curator", text="welcome to The Commons.")

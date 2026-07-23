@@ -3,13 +3,18 @@
 Reads Supabase config from .env and serves UI and vector API."""
 
 import os
+import sys
 import json
+import asyncio
 import http.server
 import socketserver
 import urllib.parse
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
 from supabase import create_client
+
+# Repo root on sys.path so we can import the Commons world backend (B2 live).
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 load_dotenv()
 
@@ -23,6 +28,26 @@ if not SUPABASE_URL or not SUPABASE_KEY:
     exit(1)
 
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+
+
+# ── Commons live world for the guest view (B2 snapshot endpoint) ────────────
+_GUEST_WORLD = None
+
+
+def _guest_world():
+    """Lazily create the server's in-process Commons world for /guest.
+
+    NOTE: this is the web server's OWN world instance, seeded for the guest
+    view. Unifying it with the conductor's live agent world (a shared snapshot
+    store) is the remaining step; the presence + snapshot wiring is complete.
+    """
+    global _GUEST_WORLD
+    if _GUEST_WORLD is None:
+        from mcp_servers.world_backends import InMemoryBackend
+        from shared.commons_presence import seed_demo_world
+        _GUEST_WORLD = InMemoryBackend()
+        asyncio.run(seed_demo_world(_GUEST_WORLD))
+    return _GUEST_WORLD
 
 
 def pca_2d(points, n_components=2):
@@ -97,6 +122,9 @@ class DashboardHandler(http.server.SimpleHTTPRequestHandler):
         elif path == "/api/gallery":
             self._handle_gallery_api()
 
+        elif path == "/api/commons":
+            self._handle_commons_api()
+
         elif path.startswith("/blender-jobs/"):
             self._serve_blender_asset(urllib.parse.unquote(path[len("/blender-jobs/"):]))
 
@@ -119,6 +147,33 @@ class DashboardHandler(http.server.SimpleHTTPRequestHandler):
 
         else:
             super().do_GET()
+
+    def do_POST(self):
+        parsed = urllib.parse.urlparse(self.path)
+        if parsed.path == "/api/commons/join":
+            self._handle_commons_join()
+        else:
+            self.send_response(404)
+            self.end_headers()
+
+    def _handle_commons_api(self):
+        """Live Commons snapshot for the guest view (B2)."""
+        from shared.commons_presence import world_snapshot
+        try:
+            self._send_json(asyncio.run(world_snapshot(_guest_world())))
+        except Exception as e:
+            self._send_json({"error": str(e)}, 500)
+
+    def _handle_commons_join(self):
+        """A human guest takes a peer seat in the world (Charter 5.4)."""
+        from shared.commons_presence import join_as_guest
+        try:
+            length = int(self.headers.get("Content-Length", 0) or 0)
+            body = json.loads(self.rfile.read(length) or b"{}")
+            result = asyncio.run(join_as_guest(_guest_world(), body.get("handle", "")))
+            self._send_json(result)
+        except Exception as e:
+            self._send_json({"error": str(e)}, 500)
 
     def _handle_gallery_api(self):
         """Serve the blender-jobs glTF gallery manifest (B2)."""
