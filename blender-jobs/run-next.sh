@@ -1,39 +1,25 @@
 #!/bin/bash
-# Run the next pending Blender job via opencode
+# Run APPROVED Blender jobs through the persistent B0 ambassador.
 # Usage: ./blender-jobs/run-next.sh
-# Designed to be triggered by launchd/cron
+# Designed to be triggered by launchd/cron.
+#
+# B1: no separate socket addon needed — the worker launches the persistent
+# Blender ambassador itself (blender --background --python
+# mcp_servers/blender_mcp_server.py) via create_blender_ambassador(). Only jobs
+# a human has APPROVED (queue/approved/) are executed here; pending jobs wait.
 
 cd "$(dirname "$0")/.." || exit 1
 
-# Check if Blender is reachable
-python3 -c "
-import socket
-s = socket.socket()
-try:
-    s.connect(('localhost', 9876))
-    s.close()
-    print('BLENDER_OK')
-except:
-    print('BLENDER_DOWN')
-" 2>/dev/null | grep -q BLENDER_OK || {
-    echo "Blender MCP not reachable on port 9876"
-    echo "Make sure Blender is open with BlenderMCP connected"
-    exit 1
-}
-
-# Check for pending jobs
-PENDING=$(ls blender-jobs/queue/pending/*.md 2>/dev/null | wc -l)
-if [ "$PENDING" -eq 0 ]; then
-    echo "No pending jobs in blender-jobs/queue/pending/"
-    echo "Refilling from seed ideas..."
-    python3 blender-jobs/worker.py
+APPROVED=$(ls blender-jobs/queue/approved/*.md 2>/dev/null | wc -l | tr -d ' ')
+if [ "$APPROVED" -eq 0 ]; then
+    echo "No approved jobs. Approve some first:"
+    echo "  python3 blender-jobs/worker.py list"
+    echo "  python3 blender-jobs/worker.py approve <slug|all>"
     exit 0
 fi
 
-echo "Found $PENDING pending job(s)"
-
-# Run the worker
-python3 blender-jobs/worker.py 2>&1
+echo "Found $APPROVED approved job(s) — running via the persistent Blender ambassador."
+python3 blender-jobs/worker.py run 2>&1
 echo "---"
-echo "Done. Pending left: $(ls blender-jobs/queue/pending/*.md 2>/dev/null | wc -l)"
-echo "Gallery: blender-jobs/gallery.md"
+echo "Approved left: $(ls blender-jobs/queue/approved/*.md 2>/dev/null | wc -l | tr -d ' ')"
+echo "Gallery: blender-jobs/gallery.md   Exports: blender-jobs/exports/"

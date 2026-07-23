@@ -1,82 +1,76 @@
 #!/usr/bin/env python3
-"""
-Blender Autonomous Worker
-Picks pending jobs from blender-jobs/queue/pending/, sends them to Blender
-via MCP socket, captures screenshot, and moves to done/failed.
-"""
+"""Blender autonomous job worker — B1.
 
+Pulls APPROVED jobs from ``blender-jobs/queue/approved/``, runs each through the
+persistent Blender ambassador (B0) in one session, exports a **glTF**, saves a
+render, and files the job to ``done/``/``failed/`` with a gallery entry.
+
+Approve gate (human-in-the-loop): jobs land in ``pending/`` and DO NOT run until
+a human approves them (``approve`` → moves to ``approved/``). Unattended launchd
+runs (``run``) execute only what was approved — no surprise autonomous builds.
+
+CLI::
+
+    python blender-jobs/worker.py list                 # show pending + approved
+    python blender-jobs/worker.py add "<prompt>"       # queue a pending job
+    python blender-jobs/worker.py refill               # seed pending from seed-ideas
+    python blender-jobs/worker.py approve <slug|all>   # pending -> approved
+    python blender-jobs/worker.py run [--limit N]      # run approved via the B0 ambassador
+
+Execution goes through ``mcp_servers.persistent_blender.create_blender_ambassador``
+(B0) — one long-lived Blender, so scene-setup → build → export → render all share
+the same scene. Templates run through the sandboxed ``blender.execute_script``.
+"""
+from __future__ import annotations
+
+import argparse
+import asyncio
 import json
-import os
-import socket
 import shutil
-import subprocess
 import sys
-import time
 from datetime import datetime
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-CONFIG_PATH = ROOT / "blender-jobs" / "config.json"
-QUEUE_DIR = ROOT / "blender-jobs" / "queue"
-SCREENSHOTS_DIR = ROOT / "blender-jobs" / "screenshots"
-GALLERY_PATH = ROOT / "blender-jobs" / "gallery.md"
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
-with open(CONFIG_PATH) as f:
-    CONFIG = json.load(f)
+JOBS = ROOT / "blender-jobs"
+QUEUE = JOBS / "queue"
+PENDING = QUEUE / "pending"
+APPROVED = QUEUE / "approved"
+ACTIVE = QUEUE / "active"
+DONE = QUEUE / "done"
+FAILED = QUEUE / "failed"
+SCREENSHOTS = JOBS / "screenshots"
+EXPORTS = JOBS / "exports"
+GALLERY = JOBS / "gallery.md"
+TEMPLATES_DIR = JOBS / "templates"
 
-SCREENSHOTS_DIR.mkdir(parents=True, exist_ok=True)
+CONFIG = json.loads((JOBS / "config.json").read_text())
 
-
-def send_to_blender(cmd: dict) -> dict:
-    """Send a command to the Blender MCP addon via TCP socket."""
-    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    s.settimeout(30)
-    s.connect((CONFIG["blender_host"], CONFIG["blender_port"]))
-    s.sendall(json.dumps(cmd).encode() + b"\n")
-    resp = b""
-    while True:
-        try:
-            chunk = s.recv(4096)
-            if not chunk:
-                break
-            resp += chunk
-            json.loads(resp)
-            break
-        except json.JSONDecodeError:
-            continue
-        except socket.timeout:
-            break
-    s.close()
-    return json.loads(resp) if resp else {"status": "error", "message": "no response"}
+for _d in (PENDING, APPROVED, ACTIVE, DONE, FAILED, SCREENSHOTS, EXPORTS):
+    _d.mkdir(parents=True, exist_ok=True)
 
 
-def execute_code(code: str) -> dict:
-    return send_to_blender({"type": "execute_code", "params": {"code": code}})
+# ── ambassador (B0) ─────────────────────────────────────────────────────────
+def _ambassador():
+    from mcp_servers.persistent_blender import create_blender_ambassador
+    return create_blender_ambassador()
 
 
-def get_screenshot(job_name: str) -> bool:
-    """Save viewport screenshot to disk."""
-    SCREENSHOTS_DIR.mkdir(parents=True, exist_ok=True)
-    screenshot_path = str((SCREENSHOTS_DIR / f"{job_name}.png").resolve())
-    result = send_to_blender({
-        "type": "get_viewport_screenshot",
-        "params": {"filepath": screenshot_path}
-    })
-    ok = result.get("status") == "success" and result.get("result", {}).get("success")
-    if ok:
-        print(f"Screenshot saved: {screenshot_path}")
-    else:
-        print(f"Screenshot result: {result}")
-    return ok
+def _ok(result) -> bool:
+    return isinstance(result, dict) and result.get("success", True) and not result.get("error")
 
 
-def scene_setup_code():
-    """Code that runs before every job: clean scene, set up render engine."""
+# ── scene + templates ───────────────────────────────────────────────────────
+def scene_setup_code() -> str:
+    """Runs before every job: clean scene, render engine, lights, camera."""
     return """
 import bpy
 bpy.ops.object.select_all(action='SELECT')
 bpy.ops.object.delete(use_global=False)
-for mat in bpy.data.materials:
+for mat in list(bpy.data.materials):
     bpy.data.materials.remove(mat)
 bpy.context.scene.render.engine = 'CYCLES'
 bpy.context.scene.render.resolution_x = 1920
@@ -88,179 +82,216 @@ bpy.ops.object.camera_add(location=(8, -8, 6))
 cam = bpy.context.active_object
 cam.rotation_euler = (1.1, 0, 0.8)
 bpy.context.scene.camera = cam
+print('{"status": "ok"}')
 """
 
 
-def parse_job(filepath: Path) -> dict:
-    """Parse a .md job file into a dict."""
-    text = filepath.read_text()
-    lines = text.strip().split("\n")
-    prompt = lines[0] if lines else ""
-    return {"prompt": prompt, "full_text": text, "filepath": filepath}
-
-
-def create_job_file(prompt: str):
-    """Write a new pending job."""
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    slug = "".join(c if c.isalnum() or c in " -_" else "" for c in prompt.lower())[:40]
-    slug = slug.strip().replace(" ", "-")
-    filename = f"{timestamp}_{slug}.md"
-    filepath = QUEUE_DIR / "pending" / filename
-    filepath.write_text(f"{prompt}\n\n---\nCreated: {datetime.now().isoformat()}\n")
-    return filepath
-
-
-TEMPLATES_DIR = ROOT / "blender-jobs" / "templates"
-
 TEMPLATE_MAP = [
     (["forest", "campfire", "tent"], "forest_campfire.py"),
-    (["cabin", "fireplace", "cozy", "interior", "fireplace", "bookshelf"], "cabin_interior.py"),
+    (["cabin", "fireplace", "cozy", "interior", "bookshelf"], "cabin_interior.py"),
     (["chess", "marble", "obsidian", "board", "pawn"], "chessboard.py"),
     (["zen", "garden", "bonsai", "sand", "rock"], "zen_garden.py"),
     (["floating", "island", "waterfall", "ancient"], "floating_island.py"),
 ]
 
 
-def build_prompt_code(job: dict) -> str:
-    """Match prompt to a template and return executable bpy code."""
-    prompt = job["prompt"].lower()
-
+def build_prompt_code(prompt: str) -> str:
+    """Match a prompt to a template and return executable bpy code."""
+    low = prompt.lower()
     for keywords, template_file in TEMPLATE_MAP:
-        if any(k in prompt for k in keywords):
-            tmpl_path = TEMPLATES_DIR / template_file
-            if tmpl_path.exists():
-                code = tmpl_path.read_text()
+        if any(k in low for k in keywords):
+            tmpl = TEMPLATES_DIR / template_file
+            if tmpl.exists():
+                code = tmpl.read_text()
                 if "import bpy" not in code:
                     code = "import bpy, math, random\n" + code
                 return code
-
-    # Fallback: simple scene
-    return """import bpy, math, random
-
-bpy.ops.mesh.primitive_cube_add(size=2, location=(0, 0, 1))
-cube = bpy.context.active_object
-mat = bpy.data.materials.new("Default")
-mat.use_nodes = True
-mat.node_tree.nodes["Principled BSDF"].inputs[0].default_value = (0.2, 0.4, 0.8, 1)
-cube.data.materials.append(mat)
-
-bpy.ops.object.text_add(location=(0, 0, 2.2))
-text = bpy.context.active_object
-text.data.body = "SUPARAYS"
-text.data.size = 0.5
-text.data.align_x = "CENTER"
-"""
+    return (
+        "import bpy, math, random\n"
+        "bpy.ops.mesh.primitive_cube_add(size=2, location=(0, 0, 1))\n"
+        "cube = bpy.context.active_object\n"
+        "mat = bpy.data.materials.new('Default')\n"
+        "mat.use_nodes = True\n"
+        "mat.node_tree.nodes['Principled BSDF'].inputs[0].default_value = (0.2, 0.4, 0.8, 1)\n"
+        "cube.data.materials.append(mat)\n"
+    )
 
 
-def run_job(job: dict) -> bool:
-    """Execute a single job. Returns True on success."""
-    job_name = job["filepath"].stem
-    print(f"\n--- Running: {job['prompt']} ---")
+# ── queue helpers ───────────────────────────────────────────────────────────
+def parse_job(filepath: Path) -> dict:
+    text = filepath.read_text()
+    prompt = text.strip().split("\n")[0] if text.strip() else ""
+    return {"prompt": prompt, "full_text": text, "filepath": filepath}
 
-    # Move to active
-    active_path = QUEUE_DIR / "active" / job["filepath"].name
-    shutil.move(str(job["filepath"]), str(active_path))
 
-    # Reset scene
-    result = execute_code(scene_setup_code())
-    if result["status"] != "success":
-        print(f"Scene reset failed: {result}")
-        shutil.move(str(active_path), str(QUEUE_DIR / "failed" / job["filepath"].name))
-        return False
+def create_job_file(prompt: str) -> Path:
+    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+    slug = "".join(c if c.isalnum() or c in " -_" else "" for c in prompt.lower())[:40]
+    slug = slug.strip().replace(" ", "-")
+    fp = PENDING / f"{ts}_{slug}.md"
+    fp.write_text(f"{prompt}\n\n---\nCreated: {datetime.now().isoformat()}\n")
+    print(f"queued (pending): {fp.stem}")
+    return fp
 
-    # Build the scene
-    code = build_prompt_code(job)
-    result = execute_code(code)
-    if result["status"] != "success":
-        print(f"Job execution failed: {result}")
-        # Save error
-        err_path = QUEUE_DIR / "failed" / job["filepath"].name
-        active_path.read_text()
-        shutil.move(str(active_path), str(err_path))
-        return False
 
-        # Take screenshot
-        try:
-            get_screenshot(job_name)
-        except Exception as e:
-            print(f"Screenshot failed: {e}")
+def refill_queue() -> int:
+    """Seed pending jobs from seed-ideas.md when the pending queue runs low."""
+    if len(list(PENDING.glob("*.md"))) >= CONFIG.get("min_pending_for_refill", 2):
+        return 0
+    seed = ROOT / CONFIG.get("seed_file", "blender-jobs/seed-ideas.md")
+    if not seed.exists():
+        return 0
+    used = {d.read_text().split("\n")[0].strip() for d in DONE.glob("*.md")}
+    added = 0
+    for line in seed.read_text().splitlines():
+        line = line.strip()
+        if line.startswith("- "):
+            idea = line[2:].strip()
+            if idea and idea not in used:
+                create_job_file(idea)
+                added += 1
+                if added >= 3:
+                    break
+    return added
 
-    # Move to done
-    done_path = QUEUE_DIR / "done" / job["filepath"].name
-    shutil.move(str(active_path), str(done_path))
 
-    # Update gallery
-    append_gallery(job, done_path)
-    print(f"Done: {job['prompt']}")
+# ── approve gate ─────────────────────────────────────────────────────────────
+def _matches(fp: Path, selector: str) -> bool:
+    return selector == "all" or selector.lower() in fp.name.lower()
+
+
+def cmd_approve(selector: str) -> int:
+    moved = 0
+    for fp in sorted(PENDING.glob("*.md")):
+        if _matches(fp, selector):
+            shutil.move(str(fp), str(APPROVED / fp.name))
+            print(f"approved: {fp.stem}")
+            moved += 1
+    if not moved:
+        print(f"no pending job matched {selector!r}")
+    return moved
+
+
+def cmd_list() -> None:
+    for label, d in (("pending", PENDING), ("approved", APPROVED),
+                     ("done", DONE), ("failed", FAILED)):
+        files = sorted(d.glob("*.md"))
+        print(f"{label} ({len(files)})" + (":" if files else ""))
+        for f in files[:20]:
+            print(f"  {f.stem}")
+    print("\nApprove a job to let `run` execute it: "
+          "python blender-jobs/worker.py approve <slug|all>")
+
+
+# ── run (async, via the B0 persistent ambassador) ───────────────────────────
+def _fail(active: Path, msg: str) -> bool:
+    print(f"FAILED: {msg}")
+    shutil.move(str(active), str(FAILED / active.name))
+    return False
+
+
+async def run_job(amb, job: dict) -> bool:
+    name = job["filepath"].stem
+    print(f"\n--- running (approved): {job['prompt']} ---")
+    active = ACTIVE / job["filepath"].name
+    shutil.move(str(job["filepath"]), str(active))
+
+    execute_script = amb.tools["blender.execute_script"]
+
+    r = await execute_script(script=scene_setup_code())
+    if not _ok(r):
+        return _fail(active, f"scene setup: {r}")
+
+    r = await execute_script(script=build_prompt_code(job["prompt"]))
+    if not _ok(r):
+        return _fail(active, f"build: {r}")
+
+    # glTF export (the B1 deliverable) — one session, so the scene we just built.
+    glb = EXPORTS / f"{name}.glb"
+    exp = await amb.tools["blender.export_gltf"](filepath=str(glb))
+    gltf_ok = _ok(exp)
+    if not gltf_ok:
+        print(f"glTF export warning: {exp}")
+
+    # Render a still for the gallery (best-effort; not fatal).
+    png = SCREENSHOTS / f"{name}.png"
+    try:
+        await amb.tools["blender.render"](output_path=str(png))
+    except Exception as e:  # noqa: BLE001
+        print(f"render warning: {e}")
+
+    shutil.move(str(active), str(DONE / job["filepath"].name))
+    append_gallery(job, glb if gltf_ok else None, png)
+    print(f"done: {job['prompt']}  (glTF={'ok' if gltf_ok else 'skipped'})")
     return True
 
 
-def append_gallery(job: dict, done_path: Path):
-    """Append to the gallery index."""
-    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M")
-    screenshot_name = done_path.stem + ".png"
-    entry = (
-        f"- **{job['prompt']}**  \n"
-        f"  *Completed {timestamp}*  \n"
-        f"  ![screenshot](../blender-jobs/screenshots/{screenshot_name})\n"
-    )
-    GALLERY_PATH.parent.mkdir(parents=True, exist_ok=True)
-    if not GALLERY_PATH.exists():
-        GALLERY_PATH.write_text("# Blender Gallery\n\nAutonomously generated scenes.\n\n")
-    with open(GALLERY_PATH, "a") as f:
-        f.write(entry)
+async def run_approved(amb=None, limit=None) -> int:
+    """Run approved jobs through the ambassador. Returns count succeeded."""
+    own = amb is None
+    amb = amb or _ambassador()
+    limit = limit or CONFIG.get("max_jobs_per_run", 3)
+    approved = sorted(APPROVED.glob("*.md"))[:limit]
+    if not approved:
+        print("no approved jobs — approve some first "
+              "(python blender-jobs/worker.py approve <slug|all>)")
+        return 0
+    ran = 0
+    try:
+        for fp in approved:
+            if await run_job(amb, parse_job(fp)):
+                ran += 1
+    finally:
+        if own and hasattr(amb, "stop"):
+            try:
+                await amb.stop()
+            except Exception:
+                pass
+    print(f"\n=== ran {ran}/{len(approved)} approved job(s) ===")
+    return ran
 
 
-def refill_queue():
-    """Generate new ideas from seed file when queue runs low."""
-    pending_count = len(list(QUEUE_DIR.glob("pending/*.md")))
-    if pending_count >= CONFIG["min_pending_for_refill"]:
-        return
-
-    seed_path = ROOT / CONFIG["seed_file"]
-    if not seed_path.exists():
-        return
-
-    seeds = seed_path.read_text().strip().split("\n## ")
-    used = set()
-
-    for done in QUEUE_DIR.glob("done/*.md"):
-        used.add(done.read_text().split("\n")[0].strip())
-
-    new_count = 0
-    for section in seeds:
-        lines = section.strip().split("\n")
-        for line in lines:
-            if line.startswith("- "):
-                idea = line[2:].strip()
-                if idea not in used and not (QUEUE_DIR / "pending").glob(f"*{idea[:20]}*"):
-                    create_job_file(idea)
-                    new_count += 1
-                    if new_count >= 3:
-                        return
+def append_gallery(job: dict, glb: Path | None, png: Path) -> None:
+    ts = datetime.now().strftime("%Y-%m-%d %H:%M")
+    lines = [f"- **{job['prompt']}**  ", f"  *Completed {ts}*  "]
+    if glb is not None:
+        try:
+            rel = glb.relative_to(ROOT)
+        except ValueError:
+            rel = glb
+        lines.append(f"  glTF: `{rel}`  ")
+    lines.append(f"  ![screenshot](../blender-jobs/screenshots/{png.name})\n")
+    if not GALLERY.exists():
+        GALLERY.write_text("# Blender Gallery\n\nAutonomously generated scenes.\n\n")
+    with open(GALLERY, "a") as f:
+        f.write("\n".join(lines) + "\n")
 
 
-def main():
-    print(f"=== Blender Worker @ {datetime.now().isoformat()} ===")
+# ── CLI ──────────────────────────────────────────────────────────────────────
+def main() -> None:
+    ap = argparse.ArgumentParser(description="Blender autonomous job worker (B1)")
+    sub = ap.add_subparsers(dest="cmd")
+    sub.add_parser("list", help="show the queue")
+    p_add = sub.add_parser("add", help="queue a pending job")
+    p_add.add_argument("prompt")
+    sub.add_parser("refill", help="seed pending jobs from seed-ideas.md")
+    p_ap = sub.add_parser("approve", help="move pending -> approved")
+    p_ap.add_argument("selector", help="slug substring, or 'all'")
+    p_run = sub.add_parser("run", help="run approved jobs via the B0 ambassador")
+    p_run.add_argument("--limit", type=int, default=None)
+    args = ap.parse_args()
 
-    # Refill queue if needed
-    refill_queue()
-
-    # Get pending jobs
-    pending = sorted(QUEUE_DIR.glob("pending/*.md"))
-    if not pending:
-        print("No pending jobs. Add some to blender-jobs/queue/pending/")
-        return
-
-    jobs_run = 0
-    for p in pending:
-        if jobs_run >= CONFIG["max_jobs_per_run"]:
-            break
-        job = parse_job(p)
-        run_job(job)
-        jobs_run += 1
-
-    print(f"\n=== Done: {jobs_run} job(s) processed ===")
+    if args.cmd == "add":
+        create_job_file(args.prompt)
+    elif args.cmd == "refill":
+        print(f"seeded {refill_queue()} pending job(s)")
+    elif args.cmd == "approve":
+        cmd_approve(args.selector)
+    elif args.cmd == "run":
+        asyncio.run(run_approved(limit=args.limit))
+    else:
+        # Default: status only. NEVER auto-runs — the approve gate is the point.
+        cmd_list()
 
 
 if __name__ == "__main__":
