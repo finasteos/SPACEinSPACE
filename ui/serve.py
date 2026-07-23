@@ -91,6 +91,15 @@ class DashboardHandler(http.server.SimpleHTTPRequestHandler):
         elif path == "/tools":
             self._send_html(self._inject_config(os.path.join(os.path.dirname(__file__), "tools.html")))
 
+        elif path == "/guest":
+            self._send_html(self._inject_config(os.path.join(os.path.dirname(__file__), "guest.html")))
+
+        elif path == "/api/gallery":
+            self._handle_gallery_api()
+
+        elif path.startswith("/blender-jobs/"):
+            self._serve_blender_asset(urllib.parse.unquote(path[len("/blender-jobs/"):]))
+
         elif path == "/neo_minimal.css":
             css_path = os.path.join(os.path.dirname(__file__), "neo_minimal.css")
             if os.path.exists(css_path):
@@ -110,6 +119,41 @@ class DashboardHandler(http.server.SimpleHTTPRequestHandler):
 
         else:
             super().do_GET()
+
+    def _handle_gallery_api(self):
+        """Serve the blender-jobs glTF gallery manifest (B2)."""
+        try:
+            import importlib.util
+            root = os.path.dirname(os.path.dirname(__file__))
+            spec = importlib.util.spec_from_file_location(
+                "gallery_manifest", os.path.join(root, "blender-jobs", "gallery_manifest.py"))
+            mod = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(mod)
+            self._send_json(mod.build_manifest())
+        except Exception as e:
+            self._send_json({"error": str(e)}, 500)
+
+    def _serve_blender_asset(self, subpath):
+        """Serve a glTF/screenshot from blender-jobs/, path-guarded (B2)."""
+        import sys as _sys
+        _sys.path.insert(0, os.path.dirname(__file__))
+        from asset_guard import safe_blender_asset
+        p = safe_blender_asset(subpath)
+        if p is None:
+            self.send_response(404)
+            self.end_headers()
+            return
+        ctype = {
+            ".glb": "model/gltf-binary", ".gltf": "model/gltf+json",
+            ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg",
+        }.get(p.suffix.lower(), "application/octet-stream")
+        data = p.read_bytes()
+        self.send_response(200)
+        self.send_header("Content-Type", ctype)
+        self.send_header("Content-Length", str(len(data)))
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.end_headers()
+        self.wfile.write(data)
 
     def _handle_vector_api(self):
         try:
