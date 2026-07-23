@@ -5,6 +5,8 @@
 **Model:** Prefer Opus 4.8 for architecture; Fable 5 for tests/boilerplate.  
 **Budget:** keep PRs small and reviewable.
 
+**Status:** ✅ **Delivered** 2026-07-23 — [PR #1](https://github.com/finasteos/SPACEinSPACE/pull/1) (`b0-persistent-blender` → `main`), 208 tests green (197 prior + 11 new). See **Resolution** at the bottom.
+
 ## Goal
 
 Replace spawn-per-call Blender (`blender --background --python-expr` per tool) with a **long-lived Blender MCP process** that keeps one shared `.blend` (or in-memory scene) across tool calls for a session.
@@ -59,3 +61,63 @@ python scripts/smoke_persistent_blender.py
 ## Charter note
 
 Ambassador isolation stays. Conductor must not gain host filesystem rights beyond the MCP pipe. Sandbox list remains ambassador-owned.
+
+---
+
+## Resolution (2026-07-23)
+
+Delivered in [PR #1](https://github.com/finasteos/SPACEinSPACE/pull/1). Small and reviewable: 9 files, +564/−5.
+
+### Before → After
+
+| | Before | After (default) |
+|---|---|---|
+| Process | fresh `blender … --python-expr` **per call** | **one** long-lived `blender --background --python mcp_servers/blender_mcp_server.py` |
+| Continuity | ❌ call-N object gone in call N+1 | ✅ `create_object` → `get_scene_info` returns it |
+| Transport | one-shot `--python-expr` | line-delimited **JSON over stdio** (1 req → 1 resp) |
+| Rollback | — | `BLENDER_MCP_MODE=oneshot` |
+
+### How
+
+- **Server (inside Blender).** `_run_blender_script` detects `BLENDER_AVAILABLE`
+  (`import bpy`). Inside Blender it execs the script **in-process** against the
+  live `bpy` scene via a shared namespace (`_exec_in_blender`) — continuity comes
+  from `bpy.data` being process-global. Outside Blender → legacy subprocess
+  (`_run_oneshot`).
+- **Host.** `mcp_servers/persistent_blender.py::PersistentBlenderBackend` launches
+  the single long-lived Blender and speaks the JSON pipe with per-call **timeout**,
+  **crash-restart**, and **banner-noise skipping**; exposes a `.tools` dict so it
+  registers like any MCP server.
+- **Mode switch.** `create_blender_ambassador()` → persistent (default) / oneshot
+  (`BLENDER_MCP_MODE`), a process **singleton** so the conductor and the Blender
+  agent share one Blender. Wired in `orchestrator/conductor.py` +
+  `agents/blender_agent.py`.
+
+### Definition of Done — all met
+
+- [x] Persistent stdio-JSON process (no `--python-expr` one-shots)
+- [x] Scene continuity (`create_object` → `get_scene_info`)
+- [x] Session binding via `BLENDER_PATH` / `BLENDER_MCP_CMD`
+- [x] Article 4.3 sandbox unchanged (enforced server-side before exec)
+- [x] Tests share state without real Blender (fake ambassador) + smoke test
+- [x] `docs/blender.md` + `TASKLIST.md` updated
+- [x] No scope creep
+
+### Files
+
+`mcp_servers/blender_mcp_server.py` (in-process exec + legacy fallback),
+`mcp_servers/persistent_blender.py` (new: backend + factory),
+`orchestrator/conductor.py`, `agents/blender_agent.py` (wiring),
+`tests/fake_blender_server.py` + `tests/test_persistent_blender.py` (new, 11 tests),
+`scripts/smoke_persistent_blender.py` (new), `docs/blender.md`, `TASKLIST.md`.
+
+### Acceptance command (now exact)
+
+```bash
+cd /Users/perbrinell/Documents/SPACEinSPACE
+python scripts/smoke_persistent_blender.py
+# creates a cube, re-reads the scene in a SEPARATE call, asserts it survived → exit 0
+```
+
+CI (no Blender) covers the same seam via the fake ambassador in
+`tests/test_persistent_blender.py`.

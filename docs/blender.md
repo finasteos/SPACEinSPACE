@@ -25,6 +25,39 @@ results to stdout, and exposes ten tools (see
 - `blender.delete_selected`
 - `blender.undo`
 
+## Persistent vs one-shot
+
+Two execution modes, selected by `BLENDER_MCP_MODE`:
+
+- **`persistent`** (default) — one long-lived Blender process runs this server
+  inside itself (the `Start` command above). Tools execute *in-process* against
+  the live `bpy` scene, so state persists across calls: `blender.create_object`
+  then `blender.get_scene_info` returns the created object. The conductor talks
+  to it through `mcp_servers/persistent_blender.py::PersistentBlenderBackend`
+  over the stdio JSON pipe (one request → one response), with a per-call timeout
+  and automatic crash-restart. The backend skips Blender's startup banner /
+  non-JSON stdout noise.
+- **`oneshot`** — legacy / rollback. Each tool call spawns a throwaway
+  `blender --background --python-expr`; there is **no** scene continuity. Set
+  `BLENDER_MCP_MODE=oneshot`.
+
+The ambassador auto-detects mode: when `bpy` is importable it runs in-process
+(persistent); otherwise it uses the one-shot subprocess. `BLENDER_PATH`
+overrides the `blender` binary; `BLENDER_MCP_CMD` overrides the whole launch
+command (used by the test harness).
+
+## Smoke test (real Blender)
+
+With Blender installed:
+
+```bash
+python scripts/smoke_persistent_blender.py
+```
+
+It creates a cube, reads the scene back in a *separate* call, and asserts the
+cube survived — proving continuity. CI (no Blender) covers the same seam with a
+fake ambassador in `tests/test_persistent_blender.py`.
+
 ## Sandbox
 
 `blender.execute_script` is sandboxed. It refuses any of:

@@ -76,8 +76,11 @@ class Conductor:
             agent_capabilities=lambda aid: self._resolve_capabilities(aid),
         )
         try:
-            from mcp_servers.blender_mcp_server import BlenderMCPServer
-            bm = BlenderMCPServer()
+            # B0 — persistent Blender by default (one long-lived process with
+            # scene continuity). BLENDER_MCP_MODE=oneshot restores the legacy
+            # spawn-per-call behaviour for rollback.
+            from mcp_servers.persistent_blender import create_blender_ambassador
+            bm = create_blender_ambassador()
             self.tool_executor.register_blender(bm)
         except Exception:
             self.logger.info("Blender MCP not loaded — blender.* tools unavailable")
