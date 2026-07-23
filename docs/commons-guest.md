@@ -36,7 +36,8 @@ A human visits by taking a **peer seat in the world**:
 charset; a repeated handle is refused — no double-join). The human is a peer,
 not a controller.
 
-> Wiring `POST /api/commons/join` and a live `/api/commons` snapshot needs the
-> conductor to expose the (in-memory) world — a small follow-up. The presence
-> primitive and the gallery are complete and tested here; the guest page's
-> Commons summary runs on sample data until that snapshot endpoint lands.
+> **Live now:** `serve.py` hosts its own seeded Commons world and serves
+> `GET /api/commons` + `POST /api/commons/join` (→ `join_as_guest`). The guest
+> page fetches these, with a sample fallback when opened statically. The
+> remaining step is *unifying* that world with the conductor's live agent world
+> via a shared snapshot store — until then the guest view is its own instance.
