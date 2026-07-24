@@ -56,6 +56,40 @@ class A2AMessage(BaseModel):
             f"{self.from_agent} → {target} :: {self.message_type}"
         )
 
+    def attach_artifact(self, token: str, role: str = "attachment") -> None:
+        """Record an artifact:// token on the message without expanding payload."""
+        arts = self.context.setdefault("artifacts", [])
+        if isinstance(arts, list):
+            arts.append({"token": token, "role": role})
+
+    def artifact_tokens(self) -> List[str]:
+        """Tokens from context.artifacts plus any embedded in content."""
+        from shared.artifacts import extract_tokens
+        found: List[str] = []
+        for item in self.context.get("artifacts") or []:
+            if isinstance(item, dict) and item.get("token"):
+                found.append(item["token"])
+            elif isinstance(item, str):
+                found.append(item)
+        found.extend(extract_tokens(self.content or ""))
+        # de-dupe preserve order
+        seen = set()
+        out: List[str] = []
+        for t in found:
+            if t not in seen:
+                seen.add(t)
+                out.append(t)
+        return out
+
+    def with_handoff(self, token: str, hint: str = "", role: str = "handoff") -> "A2AMessage":
+        """Return a copy whose content is a short artifact handoff line."""
+        from shared.artifacts import handoff_line
+        data = self.model_dump()
+        data["content"] = handoff_line(token, hint)
+        msg = A2AMessage(**data)
+        msg.attach_artifact(token, role=role)
+        return msg
+
 
 class A2ATask(BaseModel):
     task_id: str = Field(default_factory=lambda: str(uuid4()))

@@ -135,7 +135,9 @@ Unity / Godot ambassadors (from gamedev-mcp-hub) are on by default with an
 in-memory scene backend — no Editor required. See
 [docs/game-engines.md](docs/game-engines.md). PixelLab / Meshy art-gen
 ambassadors run in stub mode without API keys, live with keys — see
-[docs/art-generation.md](docs/art-generation.md). On macOS/Linux you can also
+[docs/art-generation.md](docs/art-generation.md). Artifact handoffs
+(`artifact://space/…`) keep A2A messages small — see
+[docs/artifacts.md](docs/artifacts.md). On macOS/Linux you can also
 use `./scripts/start.sh` after `.env` is configured.
 
 ---

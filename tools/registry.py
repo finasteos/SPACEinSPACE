@@ -20,6 +20,66 @@ class ToolDef(BaseModel):
 
 
 TOOL_DEFINITIONS: dict[str, ToolDef] = {
+    # ── Artifact handoffs (substrate primitive — empty capability gate) ──
+    "artifact.resolve": ToolDef(
+        name="artifact.resolve",
+        version="1.0.0",
+        description="Resolva artifact:// token → attribution + summary (aldrig payload)",
+        parameters_schema={
+            "type": "object",
+            "properties": {"token": {"type": "string"}},
+            "required": ["token"],
+        },
+        requires_capability=[],
+    ),
+    "artifact.read": ToolDef(
+        name="artifact.read",
+        version="1.0.0",
+        description="Läs en budgeterad slice av artifact-payload + write receipt",
+        parameters_schema={
+            "type": "object",
+            "properties": {
+                "token": {"type": "string"},
+                "offset": {"type": "integer"},
+                "limit": {"type": "integer"},
+                "agent_id": {"type": "string"},
+            },
+            "required": ["token"],
+        },
+        requires_capability=[],
+    ),
+    "artifact.mint": ToolDef(
+        name="artifact.mint",
+        version="1.0.0",
+        description="Minta en artifact:// token från text/json-innehåll",
+        parameters_schema={
+            "type": "object",
+            "properties": {
+                "content": {"type": "string"},
+                "summary": {"type": "string"},
+                "kind": {"type": "string"},
+                "minted_by": {"type": "string"},
+                "thread_id": {"type": "string"},
+            },
+            "required": ["content"],
+        },
+        requires_capability=[],
+    ),
+    "artifact.revoke": ToolDef(
+        name="artifact.revoke",
+        version="1.0.0",
+        description="Återkalla en artifact (läs misslyckas därefter)",
+        parameters_schema={
+            "type": "object",
+            "properties": {
+                "token": {"type": "string"},
+                "by_agent": {"type": "string"},
+            },
+            "required": ["token"],
+        },
+        requires_capability=[],
+    ),
+
     "blender.get_scene_info": ToolDef(
         name="blender.get_scene_info",
         version="1.0.0",

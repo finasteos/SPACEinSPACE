@@ -145,6 +145,63 @@ class ToolExecutor:
                 raise ValueError(f"Unsafe expression: {expression!r}")
             return {"expression": expression, "result": eval(expression, {"__builtins__": {}}, {})}
 
+        # ── Artifact handoffs (Waggle-inspired) ─────────────
+        @self.register("artifact.resolve")
+        async def artifact_resolve(token: str) -> Dict[str, Any]:
+            from shared.artifacts import get_artifact_store
+            return get_artifact_store().resolve(token)
+
+        @self.register("artifact.read")
+        async def artifact_read(
+            token: str,
+            agent_id: str = "anonymous",
+            offset: int = 0,
+            limit: int = 4096,
+        ) -> Dict[str, Any]:
+            from shared.artifacts import get_artifact_store
+            return get_artifact_store().read(
+                token, agent_id=agent_id, offset=offset, limit=limit
+            )
+
+        @self.register("artifact.mint")
+        async def artifact_mint(
+            content: str,
+            minted_by: str = "anonymous",
+            summary: str = "",
+            thread_id: str = "",
+            kind: str = "text",
+        ) -> Dict[str, Any]:
+            from shared.artifacts import get_artifact_store
+            store = get_artifact_store()
+            if kind == "json":
+                try:
+                    obj = json.loads(content)
+                except json.JSONDecodeError:
+                    obj = content
+                m = store.mint_json(
+                    obj, minted_by=minted_by, summary=summary,
+                    thread_id=thread_id or None,
+                )
+            else:
+                m = store.mint_text(
+                    content, minted_by=minted_by, summary=summary,
+                    thread_id=thread_id or None, kind=kind,
+                )
+            return {
+                "success": True,
+                "token": m.token,
+                "byte_size": m.byte_size,
+                "summary": m.summary,
+                "kind": m.kind,
+            }
+
+        @self.register("artifact.revoke")
+        async def artifact_revoke(
+            token: str, by_agent: str = "anonymous"
+        ) -> Dict[str, Any]:
+            from shared.artifacts import get_artifact_store
+            return get_artifact_store().revoke(token, by_agent=by_agent)
+
     # ─── Validation ─────────────────────────────────────────
     # ─── Capability gate (Charter Article 4) ──────────────────────────────────
     async def _check_capability_gate(
@@ -312,6 +369,18 @@ class ToolExecutor:
             return {"id": tool_id, "name": name, "success": False,
                     "error": f"Unknown tool: {name}"}
 
+        # Inject caller identity into artifact tools when omitted.
+        if name == "artifact.read" and not args.get("agent_id"):
+            args = {**args, "agent_id": agent_id}
+        elif name == "artifact.mint" and (
+            not args.get("minted_by") or args.get("minted_by") == "anonymous"
+        ):
+            args = {**args, "minted_by": agent_id, "thread_id": args.get("thread_id") or thread_id}
+        elif name == "artifact.revoke" and (
+            not args.get("by_agent") or args.get("by_agent") == "anonymous"
+        ):
+            args = {**args, "by_agent": agent_id}
+
         # Schema-driven validation (best-effort)
         validation_errors = self.validate_arguments(name, args)
         if validation_errors:
@@ -330,6 +399,19 @@ class ToolExecutor:
         try:
             result = await asyncio.wait_for(handler(**args), timeout=30)
             latency_ms = int((datetime.now() - start).total_seconds() * 1000)
+            # Compact bulky results into artifact:// tokens so handoffs stay small.
+            # Never compact the artifact tools themselves.
+            if not name.startswith("artifact."):
+                try:
+                    from shared.artifacts import get_artifact_store
+                    result = get_artifact_store().compact_tool_result(
+                        result,
+                        agent_id=agent_id,
+                        thread_id=thread_id,
+                        tool_name=name,
+                    )
+                except Exception:
+                    pass
             span.finish(success=True)
             telemetry.record_span(span)
             if self.db is not None:
